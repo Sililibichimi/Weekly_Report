@@ -1,0 +1,475 @@
+DATATHON - DATA QUALITY CHECKLIST
+Pham vi: Data quality chung
+
+Muc tieu:
+Kiem tra xem du lieu co du tin cay de phuc vu EDA, phan tich kinh doanh va modeling hay khong.
+Sau buoc nay, can co mot bang tong hop cac van de du lieu va cach xu ly.
+
+
+1. KIEM TRA TONG QUAN CAC BANG| DONE
+
+Viec can lam:
+- Liet ke tat ca file CSV trong folder datathon.
+- Ghi lai so dong, so cot cua tung bang.
+- Xac dinh grain cua tung bang, tuc la mot dong dai dien cho dieu gi.
+- Xac dinh khoa chinh neu co.
+- Xac dinh cot thoi gian neu co.
+
+Cau hoi can tra loi:
+- Bang nao la master data?
+- Bang nao la transaction data?
+- Bang nao la analytical data?
+- Bang nao la operational data?
+- Bang nao co the dung truc tiep cho revenue/profit?
+- Bang nao can aggregate truoc khi join?
+
+Output mong muon:
+- table_overview:
+  table_name | rows | columns | grain | primary_key | date_column | date_range | main_usage
+
+
+1A. KIEM TRA SCHEMA VA COLUMN PROFILING
+
+Muc tieu:
+Hieu cau truc tung bang o muc cot: cot nao la numeric, categorical, boolean, date, ID, text.
+Day la buoc can lam truoc missing/duplicate de biet moi cot nen kiem tra theo kieu nao.
+
+Viec can lam:
+- In schema cua tung bang:
+  + table_name
+  + column_name
+  + inferred_dtype
+  + pandas_dtype
+  + non_null_count
+  + missing_count
+  + missing_pct
+  + unique_count
+  + unique_pct
+  + sample_values
+
+- Phan loai cot theo semantic type:
+  + id: khoa chinh, khoa ngoai, ma dinh danh.
+  + numeric_continuous: price, cogs, revenue, payment_value, shipping_fee.
+  + numeric_discrete: quantity, installments, rating, stockout_days.
+  + boolean_flag: stockout_flag, overstock_flag, reorder_flag, stackable_flag.
+  + categorical_low_cardinality: gender, age_group, order_status, payment_method, device_type, category, segment.
+  + categorical_high_cardinality: product_name, city, district, promo_name.
+  + date: order_date, Date, signup_date, ship_date, delivery_date, return_date, review_date.
+  + text: review_title neu can xu ly nhu text.
+
+- Dem so cot theo tung semantic type cho moi bang:
+  + so cot numeric
+  + so cot categorical
+  + so cot boolean_flag
+  + so cot date
+  + so cot id
+  + so cot text
+
+- Voi cot categorical va boolean_flag:
+  + In danh sach gia tri unique neu unique_count khong qua nguong, vi du <= 30.
+  + In value_counts va ty le phan tram cho tung gia tri.
+  + Kiem tra co gia tri viet sai, viet hoa/thuong khong thong nhat, category la khong hop le khong.
+
+- Voi cot numeric:
+  + In min, p1, median, mean, p99, max.
+  + Kiem tra co gia tri am neu cot khong nen am.
+  + Kiem tra co cot numeric dang bi doc thanh object/string khong.
+
+- Voi cot date:
+  + Kiem tra parse duoc sang datetime khong.
+  + In min_date, max_date, invalid_date_count.
+
+- Voi cot boolean_flag:
+  + Kiem tra chi nhan gia tri 0/1, True/False, hoac yes/no tuy theo quy uoc.
+  + Flag neu co gia tri ngoai tap hop hop le.
+
+Cau hoi can tra loi:
+- Moi bang co bao nhieu cot numeric, categorical, boolean, date, ID?
+- Cot nao bi pandas doc sai type?
+- Cot categorical nao co domain nho va can kiem tra value_counts?
+- Cot categorical nao co cardinality cao, khong nen one-hot truc tiep neu modeling?
+- Cot boolean nao co gia tri ngoai 0/1?
+- Cot date nao parse loi?
+- Cot nao nhin nhu numeric nhung dang o dang text?
+
+Output mong muon:
+- column_profile_summary:
+  table_name | column_name | semantic_type | pandas_dtype | non_null_count | missing_count | missing_pct | unique_count | unique_pct | sample_values
+
+- table_type_summary:
+  table_name | id_cols | numeric_cols | categorical_cols | boolean_cols | date_cols | text_cols
+
+- category_domain_summary:
+  table_name | column_name | unique_count | values_or_top_values | value_counts | suspicious_values | note
+
+- dtype_issues:
+  table_name | column_name | expected_type | actual_type | issue | severity | decision
+
+
+2. KIEM TRA MISSING VALUES | DONE
+
+Viec can lam:
+- Tinh so missing va ty le missing cho tung cot.
+- Phan loai missing thanh:
+  + Missing hop ly ve mat nghiep vu.
+  + Missing co kha nang la loi du lieu.
+
+Vi du:
+- order_items.promo_id bi missing co the hop ly vi don khong dung khuyen mai.
+- products.price bi missing la nghiem trong.
+- orders.customer_id bi missing la nghiem trong.
+
+Cau hoi can tra loi:
+- Cot nao missing nhieu nhat?
+- Missing do co y nghia nghiep vu khong?
+- Missing co anh huong den Revenue, COGS, Profit khong?
+- Nen giu nguyen, fill, hay loai bo?
+
+Output mong muon:
+- missing_summary:
+  table_name | column | missing_count | missing_pct | interpretation | action
+
+
+3. KIEM TRA DUPLICATE VA PRIMARY KEY | DONE
+
+Viec can lam:
+- Kiem tra duplicate tren cac khoa chinh:
+  + customers.customer_id
+  + products.product_id
+  + promotions.promo_id
+  + geography.zip
+  + orders.order_id
+  + payments.order_id
+  + shipments.order_id
+  + returns.return_id
+  + reviews.review_id
+  + sales.Date
+
+- Kiem tra candidate key cho cac bang khong co khoa chinh ro rang:
+  + order_items: order_id + product_id
+  + inventory: snapshot_date + product_id
+  + web_traffic: date + traffic_source
+
+Cau hoi can tra loi:
+- Khoa chinh nao bi trung?
+- Neu bi trung, do la loi hay do grain cua bang khac voi minh nghi?
+- Join voi bang duplicate co lam nhan dong khong?
+
+Output mong muon:
+- duplicate_key_summary:
+  table_name | key_columns | rows | unique_keys | duplicate_rows | severity | note
+
+
+5. KIEM TRA DATE RANGE VA TIME CONSISTENCY | DONE
+
+Viec can lam:
+- Kiem tra min date, max date, so ngay unique cho cac cot ngay:
+  + sales.Date
+  + orders.order_date
+  + customers.signup_date
+  + shipments.ship_date
+  + shipments.delivery_date
+  + returns.return_date
+  + reviews.review_date
+  + inventory.snapshot_date
+  + web_traffic.date
+  + promotions.start_date
+  + promotions.end_date
+
+- Kiem tra logic thoi gian:
+  + signup_date <= order_date
+  + order_date <= ship_date
+  + ship_date <= delivery_date
+  + order_date <= return_date
+  + order_date <= review_date
+  + start_date <= end_date
+
+Cau hoi can tra loi:
+- Sales co day du ngay lien tuc khong?
+- Orders va sales co cung khoang thoi gian khong?
+- Co ngay nao bi nguoc logic khong?
+- Co bang nao bat dau muon hon cac bang khac khong?
+- Neu lam forecast, cot nao se khong biet duoc tai thoi diem du bao?
+
+Output mong muon:
+- date_range_summary:
+  table_name | date_column | min_date | max_date | unique_dates | missing_or_invalid
+
+- time_logic_issues:
+  rule | issue_count | issue_pct | sample_rows | severity
+
+
+6. KIEM TRA BUSINESS RULES | DONE
+
+Viec can lam:
+- Kiem tra cac dieu kien nghiep vu co hop ly khong:
+  + products.price > 0
+  + products.cogs > 0
+  + products.cogs < products.price
+  + order_items.quantity > 0
+  + order_items.unit_price > 0
+  + order_items.discount_amount >= 0
+  + order_items.discount_amount <= quantity * unit_price
+  + payments.payment_value >= 0
+  + shipments.shipping_fee >= 0
+  + returns.return_quantity > 0
+  + returns.refund_amount >= 0
+  + reviews.rating between 1 and 5
+  + sales.Revenue > 0
+  + sales.COGS > 0
+  + inventory.stock_on_hand >= 0
+  + inventory.units_received >= 0
+  + inventory.units_sold >= 0
+  + inventory.stockout_days >= 0
+  + inventory.fill_rate between 0 and 1
+  + inventory.sell_through_rate between 0 and 1
+
+Cau hoi can tra loi:
+- Co gia tri am hoac bat thuong khong?
+- Co discount lon hon gia tri don hang khong?
+- Co COGS lon hon Revenue khong? Neu co, day la loi hay la ngay margin am can phan tich?
+- Co rating ngoai khoang 1-5 khong?
+
+Output mong muon:
+- business_rule_issues:
+  table_name | rule | issue_count | issue_pct | severity | note
+
+
+7. KIEM TRA ORDER LIFECYCLE VA STATUS CONSISTENCY | DONE
+
+Muc tieu:
+Kiem tra trang thai don hang co nhat quan voi payment, shipment, return va review hay khong.
+Day la data quality chung, chua can ket luan nen tinh revenue theo status nao.
+
+Viec can lam:
+- Dem so don theo order_status.
+- Kiem tra moi order co payment hay khong.
+- Kiem tra status nao co shipment:
+  + shipped
+  + delivered
+  + returned
+- Kiem tra status nao co return:
+  + returned
+- Kiem tra status nao co review:
+  + delivered
+  + returned neu co
+- Kiem tra cac status bat thuong:
+  + cancelled nhung co shipment.
+  + created/paid nhung co delivery_date.
+  + returned nhung khong co return record.
+  + returned nhung khong co shipment.
+  + delivered nhung delivery_date bi missing.
+
+Cau hoi can tra loi:
+- Ti le order theo tung status la bao nhieu?
+- Payment co dung la 1:1 voi orders khong?
+- Shipment chi xuat hien o nhung status hop ly khong?
+- Return chi xuat hien o nhung status hop ly khong?
+- Co status nao mau thuan voi cac bang khac khong?
+
+Output mong muon:
+- order_lifecycle_summary:
+  order_status | orders | has_payment_pct | has_shipment_pct | has_return_pct | has_review_pct
+
+- order_lifecycle_issues:
+  rule | issue_count | issue_pct | severity | note
+
+
+8. KIEM TRA CONSISTENCY GIUA SALES VA TRANSACTION DATA | DONE
+
+Muc tieu:
+Kiem tra bang sales.csv co nhat quan voi cac bang transaction hay khong.
+Day la kiem tra chat luong du lieu, khong phai buoc ket luan huong EDA.
+
+Viec can lam:
+- Tu transaction data, tinh cac metric theo order_date:
+  + gross_revenue = quantity * unit_price
+  + net_revenue = quantity * unit_price - discount_amount
+  + calculated_cogs = quantity * products.cogs
+  + payment_value = sum payments.payment_value
+
+- Aggregate theo ngay.
+- Join voi sales.csv theo Date.
+- So sanh:
+  + sales.Revenue vs gross_revenue
+  + sales.Revenue vs net_revenue
+  + sales.Revenue vs payment_value
+  + sales.COGS vs calculated_cogs
+
+- Lap lai so sanh theo mot so tap order_status:
+  + all orders
+  + delivered only
+  + delivered + returned
+  + non-cancelled orders
+  + paid/shipped/delivered/returned
+
+- Tinh sai lech:
+  + mean_absolute_error
+  + median_absolute_error
+  + mean_percentage_error neu mau so khac 0
+  + correlation
+  + max_absolute_error
+
+Cau hoi can tra loi:
+- sales.COGS co khop voi calculated_cogs khong?
+- sales.Revenue gan voi cong thuc transaction nao nhat?
+- Sai lech co lon den muc can ghi vao data quality issue khong?
+- Sai lech co tap trung o mot nhom status hay mot giai doan thoi gian khong?
+- Co can ghi chu ve cach sales.csv duoc tao ra khong?
+
+Output mong muon:
+- sales_transaction_consistency:
+  status_filter | compared_metric | MAE | median_AE | MPE | correlation | max_AE | note
+
+- sales_transaction_issues:
+  issue | affected_dates | severity | decision | reason
+
+
+9. KIEM TRA OUTLIERS O MUC DATA QUALITY | 
+
+Muc tieu:
+Flag cac gia tri cuc doan de kiem tra chat luong du lieu.
+Khong mac dinh outlier la loi. Khong dien giai y nghia kinh doanh o buoc nay.
+
+Viec can lam:
+- Kiem tra invalid values bang rule-based checks:
+  + quantity <= 0
+  + unit_price <= 0
+  + price <= 0
+  + cogs <= 0
+  + discount_amount < 0
+  + payment_value < 0
+  + refund_amount < 0
+  + shipping_fee < 0
+  + rating ngoai khoang 1 den 5
+  + fill_rate ngoai khoang 0 den 1
+  + sell_through_rate ngoai khoang 0 den 1
+
+- Kiem tra extreme values bang percentile hoac IQR cho cac bien numeric quan trong:
+  + products.price
+  + products.cogs
+  + order_items.quantity
+  + order_items.unit_price
+  + order_items.discount_amount
+  + payments.payment_value
+  + shipments.shipping_fee
+  + returns.return_quantity
+  + returns.refund_amount
+  + sales.Revenue
+  + sales.COGS
+  + inventory.stock_on_hand
+  + inventory.units_sold
+  + web_traffic.sessions
+  + web_traffic.page_views
+  + web_traffic.bounce_rate
+
+- Voi moi cot numeric quan trong, lay:
+  + min
+  + p1
+  + median
+  + p99
+  + max
+  + so outlier theo IQR
+  + top 5 gia tri lon nhat
+  + bottom 5 gia tri nho nhat
+
+- Ve phan bo cho mot so bien quan trong neu can:
+  + histogram
+  + boxplot
+  + line plot cho sales.Revenue va sales.COGS theo thoi gian
+
+Cau hoi can tra loi:
+- Gia tri cuc doan co vi pham rule nghiep vu khong?
+- Gia tri cuc doan chi nen flag hay can loai bo?
+- Outlier co anh huong den viec tinh aggregate tong quan khong?
+- Co can xu ly rieng truoc khi EDA khong?
+
+Output mong muon:
+- outlier_quality_summary:
+  table_name | column | method | lower_bound | upper_bound | outlier_count | outlier_pct | min | p1 | median | p99 | max | decision | note
+
+Decision hop le:
+- Pass
+- Flag only
+- Investigate later
+- Fix/exclude
+
+
+11. TONG HOP VAN DE VA QUYET DINH XU LY
+
+Muc tieu:
+Gom tat ca phat hien data quality vao mot issue log duy nhat.
+Day la bang quan trong nhat sau khi kiem tra data quality.
+
+Viec can lam:
+- Gom cac issue tu:
+  + column_profile_summary
+  + table_type_summary
+  + category_domain_summary
+  + dtype_issues
+  + missing_summary
+  + duplicate_key_summary
+  + relationship_checks
+  + date_range_summary
+  + time_logic_issues
+  + business_rule_issues
+  + order_lifecycle_issues
+  + sales_transaction_issues
+  + outlier_quality_summary
+  + submission_file_check
+
+- Gan severity:
+  + High: lam sai ket qua phan tich neu khong xu ly.
+  + Medium: anh huong mot phan phan tich hoac can canh bao.
+  + Low: can ghi chu, chua can xu ly ngay.
+
+- Gan decision:
+  + Pass
+  + Keep as is
+  + Flag only
+  + Investigate later
+  + Fix before EDA
+  + Exclude from specific analysis
+
+Cau hoi can tra loi:
+- Van de nao bat buoc xu ly truoc khi EDA?
+- Van de nao chi can ghi chu trong report?
+- Van de nao anh huong den join hoac aggregate?
+- Van de nao co the lam sai forecasting neu khong can than?
+
+Output mong muon:
+- data_quality_issue_log:
+  issue_id | source_check | table_name | column | issue_type | affected_rows | affected_pct | severity | decision | reason
+
+
+12. KET QUA CUOI CUNG CAN CO SAU PHAN DATA QUALITY
+
+Can co cac bang/notebook outputs sau:
+- table_overview
+- column_profile_summary
+- table_type_summary
+- category_domain_summary
+- dtype_issues
+- missing_summary
+- duplicate_key_summary
+- relationship_checks
+- date_range_summary
+- time_logic_issues
+- business_rule_issues
+- order_lifecycle_summary
+- order_lifecycle_issues
+- sales_transaction_consistency
+- sales_transaction_issues
+- outlier_quality_summary
+- data_quality_issue_log
+
+Ket luan can viet duoc:
+- Bang nao dang tin cay va co the dung ngay cho EDA.
+- Bang nao can can trong khi join vi co nguy co nhan dong.
+- Bang nao co missing hop ly ve nghiep vu.
+- Bang nao co issue can xu ly truoc khi phan tich.
+- sales.csv co nhat quan voi transaction data o muc nao.
+- Nhung han che du lieu nao can ghi ro trong report.
+
+
+- leakage_risk_table?
