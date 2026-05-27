@@ -11,7 +11,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-DATA_DIR = Path("datathon")
+
+def resolve_data_dir() -> Path:
+    """Find the datathon CSV folder after notebooks/helpers are reorganized."""
+    module_dir = Path(__file__).resolve().parent
+    candidates = [
+        module_dir / "datathon",
+        module_dir.parent / "datathon",
+        Path.cwd() / "datathon",
+    ]
+    for candidate in candidates:
+        if candidate.exists() and any(candidate.glob("*.csv")):
+            return candidate
+    return candidates[0]
+
+
+DATA_DIR = resolve_data_dir()
 
 
 def csv_row_count(path: Path) -> int:
@@ -46,7 +61,19 @@ def build_file_inventory(files: list[Path], table_info: dict) -> pd.DataFrame:
                 "business_use": info.get("business_use", ""),
             }
         )
-    return pd.DataFrame(records)
+    return pd.DataFrame(
+        records,
+        columns=[
+            "table",
+            "file",
+            "rows",
+            "columns",
+            "layer",
+            "grain",
+            "primary_key",
+            "business_use",
+        ],
+    )
 
 
 
