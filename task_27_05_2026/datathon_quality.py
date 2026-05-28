@@ -1298,6 +1298,7 @@ def summarize_time_rule(
     if df.empty:
         return {
             "rule": rule,
+            "violation_condition": f"{left_date} > {right_date}",
             "issue_count": 0,
             "issue_pct": 0.0,
             "sample_rows": "",
@@ -1314,6 +1315,7 @@ def summarize_time_rule(
     issue_pct = round(issue_count / denominator * 100, 4) if denominator else 0.0
     return {
         "rule": rule,
+        "violation_condition": f"{left_date} > {right_date}",
         "issue_count": issue_count,
         "issue_pct": issue_pct,
         "sample_rows": format_sample_rows(work.loc[issue_mask], sample_columns),
@@ -2898,17 +2900,18 @@ def build_data_quality_issue_log(
 
     if time_logic_issues is not None and not time_logic_issues.empty:
         for row in time_logic_issues.query("issue_count > 0").itertuples(index=False):
+            issue_type = getattr(row, "violation_condition", row.rule)
             _append_issue(
                 records,
                 "time_logic_issues",
                 "multiple",
                 "",
-                row.rule,
+                issue_type,
                 row.issue_count,
                 row.issue_pct,
                 row.severity,
                 "Investigate later" if row.severity == "High" else "Flag only",
-                "Temporal logic violation found. Review sample_rows in time_logic_issues.",
+                f"Expected rule: {row.rule}. Review sample_rows in time_logic_issues.",
             )
 
     if business_rule_issues is not None and not business_rule_issues.empty:
