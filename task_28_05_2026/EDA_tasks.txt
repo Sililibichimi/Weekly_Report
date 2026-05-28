@@ -1,0 +1,20 @@
+A: Tạo cleaning/EDA-ready layer
+1: Xử lý dữ liệu
+- Xử lý signup_date > order_dat: Khá là lớn, cần kiểm tra cách giải quyết.
+- order_items.order_id + product_id : con số này nhỏ, có thể drop được.
+- COGS > Revenue : bình thường, sử dụng để phân tích.
+- Tạo thêm một bản data sạch, clean các vấn đề đã báo cáo.
+
+2: Chọn ra metric definition:
+- Cách tính COGS và tính Renvenue đang khớp trên tất cả order, không phải net hay tính thêm return, ....
+- Cần chốt rõ
+
+3: Chốt grain cho từng hướng:
+- Daily sales: grain theo date.
+- Order/customer/product EDA: grain theo order_id, customer_id, product_id
+- Product-in-order EDA: cần xử lý order_items duplicate candidate key trước khi join/aggregate.
+
+4: Tạo data dictionary/assumption log ngắn
+- Ghi lại các quyết định: missing nào business-expected, outlier chỉ flag, revenue definition, leakage columns nào không dùng cho forecast.
+- Cái này sẽ giúp EDA/report sau đó nhất quán hơn.
+
