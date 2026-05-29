@@ -1,0 +1,77 @@
+1: Chọn feature chọn và cần tạo:
+-Date
+-Revenue
+-log_revenue
+
+-year
+-month
+-quarter
+-day_of_week
+-is_weekend
+-day_of_month
+-is_month_start_3d
+-is_month_end_4d
+-days_to_month_end
+
+-revenue_lag_1
+-revenue_lag_7
+-revenue_lag_14
+-revenue_lag_28
+-revenue_lag_365
+
+-revenue_roll_mean_7
+-revenue_roll_mean_28
+-revenue_roll_mean_90
+-revenue_roll_std_7
+-revenue_roll_std_28
+-revenue_roll_max_28
+-revenue_roll_min_28
+
+-active_promo_count
+-has_active_promo
+
+-sessions_lag_1
+-sessions_roll_mean_7
+
+-order_count_lag_1
+-order_count_roll_mean_7
+
+-quantity_sold_lag_1
+-quantity_sold_roll_mean_7
+-discount_rate_lag_7
+
+2: Xác định target: Revenue
+
+3: Tạo master daily table
+
+Bắt đầu từ sales.csv với Date, Revenue
+
+4: Aggregate các bảng phụ về cấp ngày
+orders.csv → order_count
+order_items.csv + orders.csv → quantity_sold, discount_rate
+web_traffic.csv → sessions
+promotions.csv → active_promo_count, has_active_promo
+
+5: Tạo feature thời gian.
+year, month, quarter, day_of_week, is_weekend,
+day_of_month, is_month_start_3d, is_month_end_4d,
+days_to_month_end
+
+6: Tạo lag/rolling đúng cách để tránh leakage
+
+7: Tạo lag cho biến ngoại sinh
+Các feature như sau là ổn:
+    sessions_lag_1
+    sessions_roll_mean_7
+    order_count_lag_1
+    order_count_roll_mean_7
+    quantity_sold_lag_1
+    quantity_sold_roll_mean_7
+    discount_rate_lag_7
+
+8: Xử lý missing value
+
+9: Tách train/validation theo thời gian
+Tôi sẽ cắt dữ liệu từ năm 2019 đổ đi(vì dữ liệu thời điểm này có gặp phải biến cố)
+Tức ta sẽ dùng dữ liệu từ 2012 đến 2018.
+Trong đóng train sẽ được thực hiện từ 2012->2015, valid từ 2015 đến 2016 và test từ 2016 đến 2018.
