@@ -1,20 +1,121 @@
-A: Tạo cleaning/EDA-ready layer
-1: Xử lý dữ liệu
-- Xử lý signup_date > order_dat: Khá là lớn, cần kiểm tra cách giải quyết.
-- order_items.order_id + product_id : con số này nhỏ, có thể drop được.
-- COGS > Revenue : bình thường, sử dụng để phân tích.
-- Tạo thêm một bản data sạch, clean các vấn đề đã báo cáo.
+Quy trình trước khi EDA: Chọn scope trước, sau đó clean theo scope. 
+Chỉ cần xử lý những issue ảnh hưởng tới target, daily aggregation, feature availability và leakage.
 
-2: Chọn ra metric definition:
-- Cách tính COGS và tính Renvenue đang khớp trên tất cả order, không phải net hay tính thêm return, ....
-- Cần chốt rõ
+A: Chốt target:
+1: Target chính: sales.Revenue.
+- Grain: daily, theo sales.Date.
+- Revenue definition: gross revenue trên all orders.
+- Không thay bằng payment_value hoặc net_revenue.
+2: Chốt forecast horizon
+- Dự đoán theo ngày của sample_submission.Date
+- Kiểm tra train date range của sales.csv và future date range của sample_submission.
 
-3: Chốt grain cho từng hướng:
-- Daily sales: grain theo date.
-- Order/customer/product EDA: grain theo order_id, customer_id, product_id
-- Product-in-order EDA: cần xử lý order_items duplicate candidate key trước khi join/aggregate.
+3: Chọn nhóm bảng có thể dùng cho daily forecast
 
-4: Tạo data dictionary/assumption log ngắn
-- Ghi lại các quyết định: missing nào business-expected, outlier chỉ flag, revenue definition, leakage columns nào không dùng cho forecast.
-- Cái này sẽ giúp EDA/report sau đó nhất quán hơn.
+- Bảng Sales: Dùng Date, revenue(target), COGS(chỉ dùng để phân tích profit/margin hoặc tạo lag historical, không dùng COGS cùng ngày làm feature dự đoán Revenue nếu forecast tương lai.)
+- Bảng Orders: Dùng để tạo daily historical aggregates
+Nhưng lưu ý: order count/source/device/payment cùng ngày là thông tin chỉ biết sau khi ngày đó xảy ra. Vì vậy khi modeling forecast tương lai, chỉ dùng dạng lag/rolling, ví dụ order_count_lag_7, paid_search_share_lag_7.
+- Bảng order_items: Dùng để tạo transaction/product aggregates:
+order_id, product_id, quantity, unit_price, discount_amount, promo_id, promo_id_2
+Tạo thêm: gross_revenue = quantity * unit_price, net_revenue = gross_revenue - discount_amount, has_promo, discount_rate
+- Bảng promotions: Có thể dùng nếu promotion calendar biết trước: 
+    + promo_id
+    + start_date
+    + end_date
+    + discount_type
+    + discount_value
+    + applicable_category
 
+- Bảng web_traffic: Rất đáng phân tích:
+    + date
+    + traffic_source
+    + sessions/visitors/page_views/bounce_rate
+
+- Bảng inventory: Có thể, nhưng cần phải aggregate cẩn thận, theo thangs hoặc lagged monthly.
+Vì đây là snap_shot và cuối tháng, có thể gây leakage
+
+Bảng không ưu tiên cho forecast target này
+- payments: vì payment_value là net/discounted view, không phải target gross revenue.
+- returns: hậu nghiệm sau mua, dễ leakage.
+- reviews: hậu nghiệm sau delivery, dễ leakage.
+- shipments: hậu nghiệm sau order, dễ leakage.
+- customers.signup_date: không dùng vì issue quá lớn.
+- geography: chỉ dùng nếu bạn muốn phân tích region/city mix theo lịch sử; không bắt buộc.
+
+4: Chốt cách xử lý issue log theo bảng được chọn
+Xử lý dữ liệu
+- Xử lý signup_date > order_date: Khá là lớn, cần kiểm tra cách giải quyết. -> Done, bỏ qua thông tin signup_date, sẽ dùng order_date
+- order_items.order_id + product_id : con số này nhỏ, có thể drop được. ->Done, sẽ dùng aggregate
+- COGS > Revenue : bình thường, sử dụng để phân tích. -> Done
+- Xử lý vấn đề về Order lifecycle and status consistency: 
+Không cần vì không dùng shipments, returns, delivery_date, return_date làm feature. Với bài toán gross daily revenue, nhóm này không ảnh hưởng trực tiếp.
+
+B: Các công việc EDA:
+1. Target overview :EDA target Revenue
+- Date range, số ngày train/test.
+- Revenue min/max/mean/median/std.
+- Line chart theo ngày.
+- Histogram/log histogram.
+- Kiểm tra outlier ngày doanh thu cao/thấp bất thường.
+2. Trend and seasonality
+- Rolling mean 7/28/90 ngày.
+- Revenue theo năm, tháng, quý.
+- Revenue theo day of week.
+- Weekend vs weekday.
+- Month-end/payday effect nếu có.
+3. Profit and margin
+- Tạo:
+    + gross_profit = Revenue - COGS
+    + gross_margin_pct = gross_profit / Revenue
+- Vẽ Revenue, COGS, gross profit theo thời gian.
+- Kiểm tra các ngày COGS > Revenue.
+- Margin theo tháng/weekday.
+4. Forecast horizon
+- So sánh sample_submission.Date với train date range.
+- Kiểm tra horizon dài bao nhiêu ngày.
+- Xem forecast period rơi vào tháng/quý/weekday nào.
+5. Orders daily aggregates
+Từ orders:
+- Daily order count.
+- Average revenue per order nếu join với daily gross revenue.
+- Status mix theo ngày.
+- Order source mix.
+- Device mix.
+- Payment method mix.
+- Chỉ dùng cùng ngày cho EDA; modeling thì cần lag/rolling.
+
+6. Items/products daily aggregates
+Từ order_items / order_product_items:
+- Daily quantity sold.
+- Daily discount amount.
+- Discount rate.
+- Number of unique products sold.
+- Category mix nếu join products.
+- Top product/category contribution.
+
+7. Promotion effects
+- Số order/item có promo theo ngày.
+- Promo discount amount/rate theo ngày.
+- Revenue ngày có promo vs không promo.
+- Nếu promotions có date range, kiểm tra active promo calendar.
+8. Web traffic
+Từ web_traffic:
+- Sessions/visitors/page_views/bounce_rate theo ngày.
+- Correlation với Revenue.
+- Lag correlation: traffic hôm trước/tuần trước với revenue.
+- Source mix traffic.
+
+9. Inventory
+Nếu dùng:
+- Aggregate inventory theo month.
+- Stockout/fill_rate/sell_through theo tháng.
+- So sánh với monthly revenue.
+- Cẩn thận leakage nếu dùng same-month inventory.
+
+10. EDA findings and feature candidates
+Cuối EDA, tạo bảng tóm tắt:
+- Feature group
+- Có vẻ hữu ích không
+- Có leakage risk không
+- Nên dùng raw/same-day hay lag/rolling
+- Ghi chú xử lý
