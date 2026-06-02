@@ -1,0 +1,53 @@
+1:Train naive baseline
+Trước khi dùng ML model, cần benchmark đơn giản:
+- dự đoán Revenue hôm nay = revenue_lag_7
+Đây là baseline rất mạnh cho dữ liệu daily vì giữ được pattern theo thứ trong tuần.
+
+2:Train model baseline đầu tiên
+Nên bắt đầu với:
+HistGradientBoostingRegressor
+vì có sẵn trong sklearn, không cần cài thêm thư viện. Nếu muốn mạnh hơn sau đó thì dùng LightGBM/XGBoost.
+
+3: Đánh giá model trên valid
+
+Vì target train là log_revenue, khi predict cần đưa về doanh thu thật:
+
+y_pred = np.expm1(model.predict(X_valid))
+y_true = valid_df["Revenue"]
+Metric nên dùng:
+MAE
+RMSE
+MAPE / sMAPE
+
+4: Error analysis
+Xem model sai nhiều ở đâu:
+
+theo tháng
+theo day_of_week
+weekend vs weekday
+ngày có promotion
+ngày doanh thu cực cao
+
+
+5: Feature importance
+Kiểm tra feature nào đang đóng góp nhiều:
+
+revenue_lag_7
+revenue_lag_365
+rolling mean
+promo
+day_of_week
+sessions lag
+
+6: Tune model
+
+Sau baseline mới tuning:
+
+learning_rate
+max_iter
+max_leaf_nodes
+l2_regularization
+max_depth
+
+7: Chốt model
+Khi chọn được model tốt nhất trên valid, train lại trên train + valid, rồi đánh giá một lần cuối trên test.

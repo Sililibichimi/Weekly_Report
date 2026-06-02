@@ -1,0 +1,66 @@
+{
+  "target_column": "Revenue",
+  "model_target_column": "log_revenue",
+  "feature_columns": [
+    "year",
+    "month",
+    "quarter",
+    "day_of_week",
+    "is_weekend",
+    "day_of_month",
+    "is_month_start_3d",
+    "is_month_end_4d",
+    "days_to_month_end",
+    "active_promo_count",
+    "has_active_promo",
+    "revenue_lag_1",
+    "revenue_lag_7",
+    "revenue_lag_14",
+    "revenue_lag_28",
+    "revenue_lag_365",
+    "revenue_roll_mean_7",
+    "revenue_roll_mean_28",
+    "revenue_roll_mean_90",
+    "revenue_roll_std_7",
+    "revenue_roll_std_28",
+    "revenue_roll_max_28",
+    "revenue_roll_min_28",
+    "sessions_lag_1",
+    "sessions_roll_mean_7",
+    "order_count_lag_1",
+    "order_count_roll_mean_7",
+    "quantity_sold_lag_1",
+    "quantity_sold_roll_mean_7",
+    "discount_rate_lag_7"
+  ],
+  "binary_columns": [
+    "is_weekend",
+    "is_month_start_3d",
+    "is_month_end_4d",
+    "has_active_promo"
+  ],
+  "categorical_columns": [],
+  "excluded_same_day_columns": [
+    "order_count",
+    "quantity_sold",
+    "discount_rate",
+    "sessions"
+  ],
+  "splits": {
+    "train": {
+      "rows": 1096,
+      "start_date": "2013-07-04",
+      "end_date": "2016-07-03"
+    },
+    "valid": {
+      "rows": 365,
+      "start_date": "2016-07-04",
+      "end_date": "2017-07-03"
+    },
+    "test": {
+      "rows": 546,
+      "start_date": "2017-07-04",
+      "end_date": "2018-12-31"
+    }
+  }
+}

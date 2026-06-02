@@ -12,3 +12,11 @@ Nhiệm vụ ngày 27/05/2026:
 - Kiểm tra chất lượng của dữ liệu trước khi thực hiện EDA
 
 DONE
+
+Nhiệm vụ ngày 28/05/2026
+- EDA với bài toán dự đoán doanh thu
+
+DONE
+
+Nhiệm vụ ngày 29/05/2026
+- Thực hiện feature engineering và modeling với bài toán dự đoán doanh thu.
