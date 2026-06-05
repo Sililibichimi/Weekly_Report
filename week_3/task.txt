@@ -1,0 +1,11 @@
+NHIỆM VỤ :
+- Tìm hiểu về pyspark
+- Chuyển các phần EDA, model sang bằng pyspark.
+- Tìm hiểu về api, đưa model lên api.
+  + Chọn 1 bài toán có dữ liệu id user, sau đó dùng api để triển khai model.
+    Api nhập được id user, sau đó hiện ra kết quả của model.
+  + Load test api và stress test api.
+  + Biết được cache.
+
+________________________________________________________________________________
+TÌM HIỂU VỀ PYSPARK
