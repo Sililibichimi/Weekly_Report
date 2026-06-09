@@ -1,0 +1,99 @@
+Nhiệm vụ của bước này là kiểm tra chất lượng dữ liệu. 
+
+Mục tiêu cần biết:
+biết dữ liệu có gì
+    -> thiếu gì
+    -> giá trị nào bất thường
+    -> cột nào dùng được
+    -> cột nào cần xử lý trước EDA/model
+    -> ghi lại quyết định xử lý
+
+Hiện tại ta có:
+-train_sessions: 1,708,337 dòng, 63 cột
+-test_sessions: 401,589 dòng, 63 cột
+
+-train made_purchase = 1: 18,559 dòng
+-train made_purchase = 0: 1,689,778 dòng
+-> Dữ liệu đang bị mất cân bằng rất nặng.
+
+Các nhiệm vụ cần thực hiện như sau:
+1. Đọc lại parquet để kiểm tra xem có đọc được không.
+
+2. Table overview, cần biết để trả lời:
+- Train/test có bao nhiêu dòng?
+- Có bao nhiêu user?
+- Khoảng thời gian train/test là gì?
+- Tỷ lệ mua hàng là bao nhiêu?
+
+3. Schema Check
+- Kiểm tra kiểu dữ liệu của từng cột:
+column_name | dtype | non_null_count | null_count | null_pct | unique_count
+Để biết
+- cột nào đang là string nhưng đáng lẽ là numeric?
+- cột nào null nhiều?
+- cột nào cardinality quá cao?
+
+4. Missing value check
+Ta sẽ phải kiểm tra không chỉ giá trị null mà còn cả các giá trị (not set), not available in demo dataset, unknown.unknown, (not provided)
+Output nên có: column | null_count | null_pct | placeholder_count | placeholder_pct | decision
+Đưa ra được các quyết định xử lý.
+
+5. Duplicate và Key check
+Ta có dữ liệu session-level, ta có khóa là fullVisitorId + VisitId
+Cần kiểm tra:
+Tổng số dòng
+- Số distinct session key
+- Số duplicate session
+Nếu có nhiều duplicate thì cần phải biết đó là lỗi hay do grain chưa đúng.
+
+6. Data và time check.
+- Kiểm tra xem min và max session_date
+- Số dòng theo tháng
+- Session_year/session_month có khớp session_date không
+
+7. Bussiness Rule Check
+- Kiểm tra các rule cơ bản
+  + revenue >= 0
+  + totals_hits >= 0
+  + totals_pageviews >= 0
+  + visitNumber >= 1
+  + made_purchase chỉ có 0/1
+  + made_purchase = 1 thì revenue > 0?
+  + revenue > 0 thì made_purchase = 1?
+  + totals_transactions > 0 có khớp revenue > 0 không?
+Đưa ra: rule | issue_count | issue_pct | severity | decision
+
+8. Label Quality Check
+Với bài toán là dự đoán mua hàng và doanh thu, cần kiểm tra target:
+- made_purchase distribution
+- revenue distribution
+- revenue min/max/median/p95/p99
+- số dòng revenue > 0
+- số user revenue > 0
+
+Đặc biệt nên tính theo ở cấp độ user. Vì model cuối sẽ là nhập vào user_id -> label cuối của bộ dữ liệu sẽ phải là user-level.
+
+9. Train/test Consistency check:
+So sánh giữa train và test:
+- channelGrouping distribution
+- device_category distribution
+- geo_country top values
+- traffic_medium distribution
+- purchase rate
+- revenue distribution nếu test có label
+Câu trả lời cần đưa ra là :
+- Train và test có khác nhau nhiều không?
+- Có category nào chỉ xuất hiện ở test không?
+- Có shift theo thời gian không?
+
+10. Tạo data quality issue log
+Bảng cuối nên có:
+- issue_id
+- dataset
+- column
+- issue_type
+- affected_rows
+- affected_pct
+- severity
+- decision
+- reason

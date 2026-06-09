@@ -1,0 +1,198 @@
+NHIỆM VỤ :
+- Tìm hiểu về pyspark
+- Chuyển các phần EDA, model sang bằng pyspark.
+- Tìm hiểu về api, đưa model lên api.
+  + Chọn 1 bài toán có dữ liệu id user, sau đó dùng api để triển khai model.
+    Api nhập được id user, sau đó hiện ra kết quả của model.
+  + Load test api và stress test api.
+  + Biết được cache.
+________________________________________________________________________________
+Các câu hỏi cần hỏi khi bắt đầu làm việc với dữ liệu:
+1. Dữ liệu đang nằm ở đâu?
+2. Dữ liệu có format gì? CSV, JSON, Parquet, database?
+3. Mỗi dòng đại diện cho cái gì?
+4. Output cuối cùng cần ở level nào?
+5. Cần clean những cột nào?
+6. Cần groupBy theo key nào?
+7. Có cần join bảng khác không?
+8. Có cần ghi dữ liệu trung gian không?
+9. Có cần train model không?
+10. Output cuối cùng là gì?
+_______________________________________________________________________________
+CHI TIẾT CÔNG VIỆC DỰ KIẾN:
+- PySpark DataFrame :
+  + đọc CSV/parquet: spark.read.csv, schema
+  + Thao tác DataFrame: select, filter, withColumn, groupBy, agg
+  + xử lý null, duplicate, kiểu dữ liệu
+  + window function
+  + cache, persist, unpersist
+  + ghi output ra parquet/csv
+Mục tiêu: chuyển được các bước EDA hiện tại từ pandas sang PySpark, 
+          đặc biệt các bảng tổng hợp như revenue theo ngày, customer spend, category revenue, return rate.
+
+-  Chuyển EDA chart sang Spark theo từng chart:
+  + Chọn 3-5 chart quan trọng nhất:
+    revenue/profit theo thời gian
+    doanh thu theo category
+    AOV theo customer segment
+    return rate theo category
+    discount rate vs gross margin
+  Câu hỏi business
+    -> bảng cần dùng
+    -> grain sau khi aggregate
+    -> code PySpark tạo bảng
+    -> toPandas() để vẽ chart
+__________________________________________________________________________________
+Học cách sử dụng spark với dữ liệu
+Data lấy từ Google Analytics Customer Revenue Prediction
+(https://www.kaggle.com/competitions/ga-customer-revenue-prediction/overview)
+Gồm
+- train_v2.csv
+- test_v2.csv
+Các công việc:
+- Đọc dữ liệu bằng Spark và chuyển sang Parquet
+- Chọn bài toán
+- EDA bằng spark.
+- Modeling
+- API
+Chi tiết thực hiện các nhiệm vụ dưới đây.
+________________________________________________________________________________
+Bước đầu: Đọc dữ liệu
+Mục tiêu: Tạo dược file Parquet sạch hơn từ các file train_v2, test_v2
+thành -> data_pyspark_parquet/train_sessions/ và data_pyspark_parquet/test_sessions/
+- Bước 1: Khởi tạo SparkSession. | Done
+- Bước 2: Đọc thử header và schema CSV | Done 
+- Bước 3: Đọc sample nhỏ | Done
+- Bước 4: Chọn cột cần giữ ở mức session-level | Done
+- Bước 5: Parse các cột json quan trọng | Done
+- Bước 6: Tạo các cột numeric sạch | Done
+- Bước 7: Tạo label mua hàng -> phục vụ bài phân loại sau này.
+- Bước 8: Parse thêm device, geoNetwork, trafficSource hay là các cột quan trọng | Done
+- Bước 9: Drop các cột json gốc nặng | Done
+- Bước 10: Thử sample ra parquet. | Done
+- Bước 11: Ghi ra full train ra parquet. | Done
+- Bước 12: Làm tương tự với test. | Done
+- Bước 13: Kiểm tra lại sau khi ghi parquet. | Done
+- Bước 14: Ghi lại kết quả log. | Done
+_______________________________________________________________________________
+Tổng hợp các cột của dữ liệu sau khi tách các biến json và tạo thêm các cột mới
+TỔNG HỢP:
+1. Cột gốc còn giữ lại
+
+Cột	                  Kiểu dữ liệu	             Ghi chú
+fullVisitorId	        string	                   ID visitor gốc
+visitId	string	      ID                         session gốc
+visitNumber	          string	                   Số lần visit gốc
+visitStartTime	      string	                   Unix time gốc
+date	string	        Ngày gốc                   dạng yyyyMMdd
+channelGrouping	      string	                   Kênh GA gốc
+socialEngagementType	string	                   Social flag gốc
+
+2. Cột device
+Cột	                    Kiểu dữ liệu
+device_browser	        string
+device_operating_system	string
+device_is_mobile	      boolean
+device_category	        string
+browser_family	        string
+os_family	              string
+
+3. Cột geo
+
+Cột	                    Kiểu dữ liệu
+geo_continent	          string
+geo_sub_continent	      string
+geo_country	            string
+geo_region	            string
+geo_metro	              string
+geo_city	              string
+geo_network_domain	    string
+geo_region_clean	      string
+has_geo_region	        int
+
+4. Cột traffic
+
+Cột	                        Kiểu dữ liệu
+traffic_campaign	          string
+traffic_source	            string
+traffic_medium	            string
+traffic_keyword	            string
+traffic_referral_path	      string
+traffic_ad_content	        string
+traffic_is_true_direct	    boolean
+traffic_gcl_id	            string
+traffic_medium_clean	      string
+traffic_source_clean	      string
+traffic_channel_type	      string
+is_direct_traffic	          int
+is_paid_traffic	            int
+is_organic_traffic	        int
+is_referral_traffic	        int
+has_traffic_keyword	        int
+has_gclid	                  int
+
+
+5. Cột custom dimension
+
+Cột	                   Kiểu dữ liệu
+custom_dimension_value	string
+
+6. Cột id/thời gian đã làm sạch
+
+Cột	                    Kiểu dữ liệu
+visit_id	                bigint
+visit_number	            int
+visit_start_time	        bigint
+visit_start_timestamp	    timestamp
+session_date	            date
+session_year	            int
+session_month	            int
+session_day_of_week	      int
+session_hour	            int
+
+7. Cột numeric từ totals
+
+Cột	                            Kiểu dữ liệu
+totals_visits	                      int
+totals_hits	                        int
+totals_pageviews	                  int
+totals_bounces	                    int
+totals_new_visits	                  int
+totals_time_on_site	                int
+totals_session_quality_dim	        int
+totals_transactions	                int
+totals_transaction_revenue	        bigint
+totals_total_transaction_revenue	  bigint
+transaction_revenue	                double
+total_transaction_revenue	          double
+
+8. Cột label
+
+Cột	                      Kiểu dữ liệu
+made_purchase	            int
+purchase_signal_reason	  string
+
+
+Các cột đã loại bỏ và lý do
+
+Cột	                                                      Lý do loại bỏ
+hits	                                        Rất nặng, chứa dữ liệu hit-level/product-level, chưa phù hợp session-level ở pipeline đầu
+totals	                                      JSON gốc đã parse ra các cột totals_* sạch
+device	                                      JSON gốc đã parse ra device_*, browser_family, os_family
+geoNetwork	                                  JSON gốc đã parse ra geo_*
+trafficSource	                                JSON gốc đã parse ra traffic_*
+customDimensions	                            Đã trích ra custom_dimension_value
+totals_struct	                                Struct tạm dùng trong quá trình parse
+device_struct	                                Struct tạm dùng trong quá trình parse
+geo_struct	                                  Struct tạm dùng trong quá trình parse
+traffic_struct	                              Struct tạm dùng trong quá trình parse
+totals_visits_raw	                            Raw string, đã có totals_visits kiểu int
+totals_hits_raw	                              Raw string, đã có totals_hits kiểu int
+totals_pageviews_raw	                        Raw string, đã có totals_pageviews kiểu int
+totals_bounces_raw	                          Raw string, đã có totals_bounces kiểu int
+totals_new_visits_raw	                        Raw string, đã có totals_new_visits kiểu int
+totals_time_on_site_raw	                      Raw string, đã có totals_time_on_site kiểu int
+totals_session_quality_dim_raw	              Raw string, đã có totals_session_quality_dim kiểu int
+totals_transactions_raw	                      Raw string, đã có totals_transactions kiểu int
+totals_transaction_revenue_raw	              Raw string, đã có totals_transaction_revenue kiểu bigint
+totals_total_transaction_revenue_raw	        Raw string, đã có totals_total_transaction_revenue kiểu bigint

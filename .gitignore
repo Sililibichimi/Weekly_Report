@@ -1,2 +1,3 @@
 __pycache__/
-data_pyspark/
+data_pyspark_parquet/
+gg_analytics_customer/

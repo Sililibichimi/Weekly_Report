@@ -1,0 +1,109 @@
+Nhiệm vụ của phần này là làm sạch dữ liệu
+Mục tiêu là tạo ra output:
+- data_pyspark_parquet/train_sessions_clean
+- data_pyspark_parquet/test_sessions_clean
+______________________________________________________________________________________
+Các nhiệm vụ cần thực hiện:
+1 : Đọc lại dữ liệu gốc đã parse.
+Đầu vào :
+- data_pyspark_parquet/train_sessions
+- data_pyspark_parquet/test_sessions
+- data_pyspark_parquet/data_quality_issue_log
+Mục tiêu là không sửa dữ liệu trực tiếp từ dataset gốc mà tạo bản clean riêng.
+
+2: Xử lý duplicate session
+Từ quality check ta đã có được thông tin vấn đề. Xử lý là được
+Mục tiêu :
+- dedupe theo fullVisitorId + visit_id
+- giữ bản ghi hợp lý nhất
+Quy tắc gợi ý:
+- ưu tiên dòng có revenue > 0
+- sau đó ưu tiên dòng có totals_hits/pageviews lớn hơn
+- nếu vẫn trùng thì giữ dòng đầu tiên
+Sau đó kiểm tra lại để đảm bảo duplicate_session_key = 0
+
+3. Chuẩn hóa placeholder thành null hoặc unknow hay các giá trị tương ứng.
+- Với cột categorical dùng cho EDA/model: đổi thành "unknown"
+- Với cột quá thiếu và không hữu ích: drop
+- Với cột boolean: fill thành False nếu logic hợp lý
+
+4. Drop hoặc giữ có chủ đích các cột quá thiếu
+Với các cột thiếu quá nhiều như :
+- traffic_campaign
+- traffic_keyword
+- traffic_ad_content
+- traffic_gcl_id
+- geo_metro
+- traffic_referral_path
+Nhiệm vụ không phải drop hết ngay mà cần xem xét:
+- Chia nhóm : drop_from_model, keep_for_eda, keep_flag_only.
+
+5. Chuẩn hóa target doanh thu.
+Chúng ta có nhiều cột revenue:
+- totals_transaction_revenue
+- totals_total_transaction_revenue
+- transaction_revenue
+- total_transaction_revenue
+- made_purchase
+-> Sử dụng 1 target duy nhất.
+Những cột target khác nên giữ để kiểm tra, nhưng không dùng làm feature khi model.
+Những cột :
+- transaction_revenue
+- total_transaction_revenue
+- totals_transaction_revenue
+- totals_total_transaction_revenue
+- made_purchase
+phải được đauw vào danh sách target/leakage columns, không sử dụng làm input feature.
+
+6. Xử lý lỗi label nhỏ:
+Ta có:
+- made_purchase = 1 nhưng revenue = 0
+- transaction_positive_but_no_revenue
+-> cần xem xét lại định nghĩa label nhất quán.
+
+7. Chuẩn hóa categorical values
+Một số cột nên clean text:
+- lowercase
+- trim khoảng trắng
+- gom rare category thành "other"
+
+Áp dụng cho:
+- traffic_source_clean
+- traffic_medium_clean
+- traffic_channel_type
+- browser_family
+- os_family
+- geo_country
+- device_category
+- channelGrouping
+Lý do: model sau này sẽ cần encoding, và category quá hiếm dễ gây nhiễu.
+
+8. Tạo cột phục vụ cho EDA/model.
+Từ session-level clean, tạo thêm các cột tiện dùng:
+- is_purchase_session
+- revenue_log = log1p(target_revenue)
+- is_bounce = totals_bounces == 1
+- has_pageviews
+- session_month_key
+
+9. Ghi clean Parquet
+Tạo
+- data_pyspark_parquet/train_sessions_clean
+- data_pyspark_parquet/test_sessions_clean
+Nên partition giống như bản gốc.
+
+10. Validation sau cleaning
+Sau khi clean xong cần tạo bảng kiểm tra:
+- before_rows
+- after_rows
+- removed_duplicate_rows
+- duplicate_session_after_clean
+- null/placeholder còn lại ở cột quan trọng
+- target_has_purchase distribution
+- target_revenue summary
+Kết quả mong muốn:
+- duplicate key = 0
+- target_has_purchase chỉ có 0/1
+- target_revenue >= 0
+- các cột feature chính không còn placeholder thô
+- dữ liệu gốc vẫn được giữ nguyên
