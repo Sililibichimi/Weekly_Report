@@ -1,0 +1,454 @@
+TASK 05: FEATURE ENGINEERING CHO BÀI TOÁN FUTURE 30D PURCHASE / REVENUE
+
+Bài toán:
+Tại mỗi session hiện tại của một user, dựa trên thông tin session hiện tại và lịch sử trước đó của user, dự đoán user có phát sinh mua hàng trong 30 ngày tiếp theo sau session hiện tại hay không, và nếu có thì tổng doanh thu trong 30 ngày tiếp theo là bao nhiêu.
+
+Prediction time:
+- Sau khi session hiện tại kết thúc.
+- Vì vậy được phép dùng các thông tin hành vi của session hiện tại như hits, pageviews, time_on_site.
+- Không được dùng các tín hiệu mua hàng/doanh thu của session hiện tại làm feature.
+
+Grain của bảng feature:
+- 1 dòng = 1 user tại 1 session hiện tại.
+- Key = fullVisitorId + visit_id.
+
+Input:
+- data_pyspark_parquet/train_sessions_clean_30d_label
+- data_pyspark_parquet/test_sessions_clean_30d_label
+- data_pyspark_parquet/clean_30d_label_sessions_manifest.json
+
+Output:
+- data_pyspark_parquet/train_user_session_features_30d
+- data_pyspark_parquet/test_user_session_features_30d
+- data_pyspark_parquet/feature_engineering_manifest.json
+
+Nguyên tắc quan trọng:
+- Fit mọi quy tắc từ train only.
+- Test chỉ apply/transform theo quy tắc đã fit từ train.
+- Không dùng test để chọn feature, chọn threshold, chọn bucket, hay ra insight.
+- Khi train/evaluate, chỉ dùng các dòng có has_full_30d_label_window = 1.
+
+________________________________________________________________________________
+
+1. TẠO BẢNG NỀN MODELING
+
+Mục tiêu:
+Tạo bảng input nhỏ, đủ cột cần thiết để sinh feature và label.
+
+Cần làm:
+- Đọc manifest để biết cột nằm ở chunk nào.
+- Đọc các chunk cần dùng.
+- Join bảng fullVisitorId + visit_id.
+
+Cột nên có trong bảng nền:
+- fullVisitorId
+- visit_id
+- session_date
+- visit_start_timestamp
+- session_year
+- session_month
+- has_full_30d_label_window
+- future_30d_has_purchase
+- future_30d_revenue
+
+Kiểm tra:
+- row_count train/test
+- key fullVisitorId + visit_id unique
+- train/test schema giống nhau
+- has_full_30d_label_window không null
+
+________________________________________________________________________________
+
+2. TÁCH LABEL, FEATURE, LEAKAGE
+
+Label:
+- Classification label: future_30d_has_purchase
+- Regression label: future_30d_revenue
+
+Chỉ dùng cho validation/debug, không dùng làm feature:
+- future_30d_purchase_count
+- future_30d_first_purchase_timestamp
+- days_to_first_purchase
+
+Leakage/source signal không được dùng làm feature trực tiếp:
+- session_revenue_signal
+- session_has_purchase_signal
+- session_purchase_signal_source
+- transaction_revenue
+- total_transaction_revenue
+- totals_transaction_revenue
+- totals_total_transaction_revenue
+- totals_transactions
+
+Ghi chú quan trọng:
+- session_revenue_signal chỉ được dùng để tạo previous_purchase_history, bằng cách lấy các session trước session hiện tại.
+- Không lấy giá trị purchase/revenue của session hiện tại vào feature.
+
+________________________________________________________________________________
+
+3. CHIẾN LƯỢC GIAI ĐOẠN FEATURE
+
+Không đưa tất cả feature vào ngay từ đầu.
+Chia thành 3 bộ feature:
+
+- Feature Set V1 - Baseline nhỏ:
+  Mục tiêu là chạy được pipeline end-to-end, để debug, khoảng 20-30 feature.
+
+- Feature Set V2 - Extended:
+  Thêm categorical chi tiết hơn và sparse flags nếu V1 đã ổn.
+
+- Feature Set V3 - Advanced:
+  Thêm rolling-window features và bucket features sau khi baseline đã chạy tốt.
+
+Trong notebook đầu tiên chỉ bắt buộc build và validate V1.
+V2/V3 có thể để dạng optional hoặc TODO.
+
+________________________________________________________________________________
+
+4. FEATURE SET V1 - BASELINE NHỎ
+
+Mục tiêu:
+Tạo một bộ feature gọn, đại diện đủ các nhóm:
+- time
+- current session behavior
+- traffic/device/geo
+- user history
+- một vài sparse flags có ý nghĩa
+
+4.1 Current-session numeric/time features
+
+Giữ:
+- visit_number
+- totals_hits
+- totals_pageviews
+- totals_time_on_site
+- totals_new_visits
+- is_bounce
+- session_hour
+- session_day_of_week
+- session_month
+
+Tạm bỏ trong V1:
+- totals_bounces
+- has_pageviews
+- totals_session_quality_dim
+
+Lý do:
+- totals_bounces trùng ý nghĩa với is_bounce.
+- has_pageviews trùng với totals_pageviews.
+- totals_session_quality_dim cần review leakage/meaning sau.
+
+4.2 Current-session categorical features
+
+Giữ:
+- channelGrouping_model
+- traffic_channel_type_model
+- device_category_model
+- geo_country_model
+
+Tạm bỏ trong V1:
+- traffic_source_clean_model
+- traffic_medium_clean_model
+- browser_family_model
+- os_family_model
+
+Lý do:
+- traffic_source/browser/OS có thể làm encoding phình to.
+- V1 cần gọn và dễ debug trước.
+
+4.3 Sparse/binary flags
+
+Giữ:
+- has_gclid
+- has_traffic_campaign
+- has_referral_path
+
+Tạm bỏ trong V1:
+- is_direct_traffic
+- is_paid_traffic
+- is_organic_traffic
+- is_referral_traffic
+- has_traffic_keyword
+- has_traffic_ad_content
+- has_geo_region
+- has_geo_metro
+- has_custom_dimension
+- is_socially_engaged
+
+Lý do:
+- traffic_channel_type_model đã đại diện cho direct/paid/organic/referral.
+- Các flag còn lại sẽ thêm ở V2 nếu cần.
+
+4.4 User-history features
+
+Tạo bảng window theo:
+- partitionBy(fullVisitorId)
+- orderBy(visit_start_timestamp)
+
+Window history phải kết thúc ở dòng trước session hiện tại.
+Không tính session hiện tại vào purchase/revenue history.
+
+Giữ trong V1:
+- user_previous_sessions
+- user_days_since_first_session
+- user_days_since_previous_session
+- user_previous_avg_pageviews
+- user_previous_avg_time_on_site
+- user_previous_bounce_rate
+- user_previous_purchase_count
+- user_previous_total_revenue
+- user_days_since_previous_purchase
+
+Tạm bỏ trong V1:
+- user_previous_total_hits
+- user_previous_total_pageviews
+- user_previous_total_time_on_site
+- user_previous_avg_hits
+- user_previous_new_visit_rate
+- user_previous_avg_revenue
+
+Lý do:
+- V1 ưu tiên các feature gọn, business meaning rõ.
+- Tổng và avg của cùng một metric dễ trùng ý nghĩa; giữ avg trước.
+
+4.5 Feature Set V1 cuối cùng
+
+Numeric/time:
+- visit_number
+- totals_hits
+- totals_pageviews
+- totals_time_on_site
+- totals_new_visits
+- is_bounce
+- session_hour
+- session_day_of_week
+- session_month
+
+Categorical:
+- channelGrouping_model
+- traffic_channel_type_model
+- device_category_model
+- geo_country_model
+
+Flags:
+- has_gclid
+- has_traffic_campaign
+- has_referral_path
+
+User-history:
+- user_previous_sessions
+- user_days_since_first_session
+- user_days_since_previous_session
+- user_previous_avg_pageviews
+- user_previous_avg_time_on_site
+- user_previous_bounce_rate
+- user_previous_purchase_count
+- user_previous_total_revenue
+- user_days_since_previous_purchase
+
+Tổng số feature V1: khoảng 25 feature.
+
+________________________________________________________________________________
+
+5. FEATURE SET V2 - EXTENDED OPTIONAL
+
+Chỉ thêm sau khi V1 đã chạy được modeling baseline.
+
+Có thể thêm:
+- traffic_source_clean_model
+- traffic_medium_clean_model
+- browser_family_model
+- os_family_model
+- is_direct_traffic
+- is_paid_traffic
+- is_organic_traffic
+- is_referral_traffic
+- has_traffic_keyword
+- has_traffic_ad_content
+- has_geo_region
+- has_geo_metro
+- has_custom_dimension
+- is_socially_engaged
+- user_previous_avg_hits
+- user_previous_new_visit_rate
+- user_previous_avg_revenue
+
+Mục tiêu:
+- Kiểm tra xem các categorical/flag chi tiết có cải thiện model không.
+- Nếu không cải thiện, quay lại V1.
+
+________________________________________________________________________________
+
+6. FEATURE SET V3 - ADVANCED OPTIONAL
+
+Chỉ thêm sau khi V1/V2 ổn.
+
+Rolling-window features:
+- sessions_last_7d
+- sessions_last_30d
+- sessions_last_90d
+- pageviews_last_30d
+- hits_last_30d
+- time_on_site_last_30d
+- purchase_count_last_90d
+- revenue_last_90d
+
+Bucket features:
+- visit_number_bucket
+- pageviews_bucket
+- time_on_site_bucket
+- previous_sessions_bucket
+- recency_bucket
+- previous_revenue_bucket
+
+Lưu ý:
+- Bucket threshold nếu tính theo percentile phải fit từ train only.
+- Test chỉ apply threshold đã fit từ train.
+- Rolling-window có thể tốn compute, nên để sau.
+
+________________________________________________________________________________
+
+7. XỬ LÝ NULL SAU KHI TẠO HISTORY
+
+Session đầu tiên của user sẽ có nhiều history null.
+Cần fill có chú ý:
+
+- user_previous_sessions -> 0
+- user_previous_total_revenue -> 0
+- user_previous_purchase_count -> 0
+- user_previous_avg_pageviews -> 0
+- user_previous_avg_time_on_site -> 0
+- user_previous_bounce_rate -> 0
+- user_days_since_first_session -> 0
+- user_days_since_previous_session -> -1
+- user_days_since_previous_purchase -> -1
+
+Tạo thêm flags:
+- is_first_session = user_previous_sessions == 0
+- has_previous_purchase = user_previous_purchase_count > 0
+
+Nếu thêm 2 flags này vào V1 thì tổng feature tăng thêm 2 cột, vẫn chấp nhận được.
+
+________________________________________________________________________________
+
+8. FIT TRAIN ONLY / TRANSFORM TEST
+
+Những quyết định chỉ fit từ train:
+- danh sách feature V1/V2/V3
+- rare category mapping
+- imputation values nếu không fill bằng rule cố định
+- bucket thresholds
+- StringIndexer / OneHotEncoder
+- scaler nếu có
+
+Với notebook 05:
+- Có thể chỉ tạo raw feature table.
+- Encoding/StringIndexer có thể để sang notebook modeling.
+
+Những vẫn cần ghi trong manifest:
+- categorical_features
+- numeric_features
+- binary_features
+- label_columns
+- leakage_excluded_columns
+- feature_set_v1
+- feature_set_v2_optional
+- feature_set_v3_optional
+
+________________________________________________________________________________
+
+9. GHI OUTPUT
+
+Output bắt buộc:
+- data_pyspark_parquet/train_user_session_features_30d
+- data_pyspark_parquet/test_user_session_features_30d
+- data_pyspark_parquet/feature_engineering_manifest.json
+
+Output optional:
+- data_pyspark_parquet/train_user_session_features_30d_sample
+- data_pyspark_parquet/feature_validation_report
+
+Manifest nên có:
+- created_at
+- grain
+- input_paths
+- output_paths
+- join_key_columns
+- label_columns
+- feature_set_v1
+- feature_set_v2_optional
+- feature_set_v3_optional
+- numeric_features
+- categorical_features
+- binary_features
+- leakage_excluded_columns
+- null_fill_rules
+- train_only_fit_rules
+
+________________________________________________________________________________
+
+10. VALIDATION FEATURE TABLE
+
+Kiểm tra trước khi modeling:
+
+Dataset/schema:
+- train row count
+- test row count
+- train/test schema giống nhau
+- key fullVisitorId + visit_id unique
+
+Label:
+- future_30d_has_purchase distribution
+- future_30d_revenue summary
+- label null count với has_full_30d_label_window = 1 phải bằng 0
+
+Feature:
+- feature null count
+- numeric feature min/max có hợp lý không
+- categorical feature null/unknown rate
+- binary feature chỉ có 0/1
+- không có leakage columns trong feature list
+
+Window/history:
+- user_previous_sessions >= 0
+- is_first_session = 1 thì user_previous_sessions = 0
+- has_previous_purchase = 1 thì user_previous_purchase_count > 0
+- user_previous_purchase_count không được lấy từ session hiện tại
+
+________________________________________________________________________________
+
+11. DEBUG / SAMPLING CHO MODELING
+
+Vì dữ liệu lớn, không cần train full ngay từ đầu.
+
+Nên tạo sample debug:
+- Giữ toàn bộ positive class.
+- Sample 5-10% negative class.
+- Chỉ dùng để debug pipeline/model code.
+
+Lưu ý:
+- Final validation/evaluation phải dùng tập validation đầy đủ, đúng phân phối thật.
+- Không báo cáo metric chính trên debug sample.
+
+________________________________________________________________________________
+
+CHECKLIST HOÀN THÀNH
+
+- [ ] Đọc được train/test clean 30d label theo chunk.
+- [ ] Tạo bảng nền modeling với fullVisitorId + visit_id.
+- [ ] Tách label, feature, leakage rõ ràng.
+- [ ] Tạo Feature Set V1 khoảng 25 feature.
+- [ ] Tạo user-history feature bằng window, không dùng session hiện tại cho purchase/revenue history.
+- [ ] Fill null cho history feature.
+- [ ] Tạo is_first_session và has_previous_purchase.
+- [ ] Ghi train_user_session_features_30d.
+- [ ] Ghi test_user_session_features_30d.
+- [ ] Ghi feature_engineering_manifest.json.
+- [ ] Validate row count, schema, key uniqueness.
+- [ ] Validate label distribution và feature null count.
+- [ ] Validate không có leakage columns trong feature list.
+
+Bước tiếp theo:
+- 06_modeling_baseline.ipynb
+- Train classification baseline cho future_30d_has_purchase.
+- Train regression baseline cho future_30d_revenue trên các dòng future_30d_revenue > 0.
