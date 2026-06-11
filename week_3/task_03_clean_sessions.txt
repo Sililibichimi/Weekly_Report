@@ -1,73 +1,127 @@
-Nhiệm vụ của phần này là làm sạch dữ liệu
-Mục tiêu là tạo ra output:
-- data_pyspark_parquet/train_sessions_clean
-- data_pyspark_parquet/test_sessions_clean
+Nhiệm vụ của phần này là làm sạch dữ liệu session đã parse, sau đó tạo label cho bài toán dự đoán mua hàng trong 30 ngày tiếp theo.
+
+Mục tiêu tạo ra output:
+- data_pyspark_parquet/train_sessions_clean_30d_label
+- data_pyspark_parquet/test_sessions_clean_30d_label
+- data_pyspark_parquet/clean_30d_label_sessions_manifest.json
+- data_pyspark_parquet/clean_30d_label_validation_report
+
+Bài toán sau khi thay đổi:
+- Với mỗi session hiện tại, dự đoán khách hàng có mua hàng trong 30 ngày tiếp theo hay không.
+- Nếu có mua hàng, dự đoán tổng doanh thu trong 30 ngày tiếp theo.
+- Current session purchase không được tính vào label.
+- Label chỉ được tạo từ future sessions của cùng fullVisitorId, với thời gian strictly sau session hiện tại.
+
 ______________________________________________________________________________________
+
 Các nhiệm vụ cần thực hiện:
-1 : Đọc lại dữ liệu gốc đã parse.
-Đầu vào :
+
+1. Đọc lại dữ liệu gốc đã parse
+
+Đầu vào:
 - data_pyspark_parquet/train_sessions
 - data_pyspark_parquet/test_sessions
 - data_pyspark_parquet/data_quality_issue_log
-Mục tiêu là không sửa dữ liệu trực tiếp từ dataset gốc mà tạo bản clean riêng.
+- data_pyspark_parquet/read_csv_to_parquet_log.json
 
-2: Xử lý duplicate session
-Từ quality check ta đã có được thông tin vấn đề. Xử lý là được
-Mục tiêu :
-- dedupe theo fullVisitorId + visit_id
-- giữ bản ghi hợp lý nhất
-Quy tắc gợi ý:
-- ưu tiên dòng có revenue > 0
+Mục tiêu:
+- Không sửa trực tiếp dataset gốc.
+- Tạo bản clean riêng để phục vụ EDA và modeling.
+- Kiểm tra schema, số dòng, số cột và các cột revenue/transaction source hiện có.
+
+2. Xử lý duplicate session
+
+Từ quality check ở notebook 02, xác định duplicate session key và dedupe theo:
+- fullVisitorId
+- visit_id
+
+Quy tắc giữ bản ghi hợp lý nhất:
+- ưu tiên dòng có revenue source lớn hơn 0
+- sau đó ưu tiên dòng có transaction source lớn hơn 0
 - sau đó ưu tiên dòng có totals_hits/pageviews lớn hơn
-- nếu vẫn trùng thì giữ dòng đầu tiên
-Sau đó kiểm tra lại để đảm bảo duplicate_session_key = 0
+- nếu vẫn trùng thì giữ dòng đầu tiên theo thứ tự ổn định
 
-3. Chuẩn hóa placeholder thành null hoặc unknow hay các giá trị tương ứng.
-- Với cột categorical dùng cho EDA/model: đổi thành "unknown"
-- Với cột quá thiếu và không hữu ích: drop
-- Với cột boolean: fill thành False nếu logic hợp lý
+Sau khi xử lý cần kiểm tra:
+- duplicate_session_key sau clean = 0
+- số dòng bị loại do duplicate
+- dữ liệu gốc vẫn giữ nguyên
 
-4. Drop hoặc giữ có chủ đích các cột quá thiếu
-Với các cột thiếu quá nhiều như :
+3. Chuẩn hóa placeholder và missing values
+
+Chuẩn hóa các giá trị placeholder thường gặp:
+- "(not set)"
+- "not available in demo dataset"
+- "(not provided)"
+- ""
+- các biến thể null/none/unknown dạng text
+
+Nguyên tắc xử lý:
+- Với categorical dùng cho EDA/model: chuẩn hóa về null ở bước raw clean, sau đó tạo cột `_model` với giá trị thay thế phù hợp.
+- Với boolean: fill theo logic rõ ràng, ví dụ missing bounces có thể hiểu là không bounce nếu phù hợp với định nghĩa.
+- Với numeric: cast về kiểu số, giữ null nếu không có thông tin.
+- Không tạo label ở bước này.
+
+4. Lập column treatment policy
+
+Phân nhóm cột theo mục đích sử dụng:
+- keep_for_feature: có thể dùng làm feature sau khi clean.
+- keep_for_eda: giữ để phân tích, không nhất thiết dùng làm model input.
+- drop_from_model: không dùng cho model vì quá thiếu, quá nhiễu, hoặc không phù hợp.
+- keep_flag_only: tạo flag có/không, còn giá trị raw không dùng trực tiếp.
+- leakage_or_label_source: cột revenue/transaction của session hiện tại, chỉ dùng để tạo source signal và future label, không dùng làm input feature.
+
+Các cột sparse cần xem xét:
 - traffic_campaign
 - traffic_keyword
 - traffic_ad_content
 - traffic_gcl_id
 - geo_metro
 - traffic_referral_path
-Nhiệm vụ không phải drop hết ngay mà cần xem xét:
-- Chia nhóm : drop_from_model, keep_for_eda, keep_flag_only.
 
-5. Chuẩn hóa target doanh thu.
-Chúng ta có nhiều cột revenue:
+Mục tiêu không phải drop tất cả ngay, mà ghi rõ lý do giữ/bỏ/sử dụng dạng flag.
+
+5. Tạo session purchase source signal
+
+Không tạo target trực tiếp từ session hiện tại nữa.
+
+Thay vào đó, tạo signal mô tả session hiện tại có dấu hiệu mua hàng hay không:
+- session_revenue_signal
+- session_has_purchase_signal
+- session_purchase_signal_source
+
+Nguồn tạo signal:
+- totals_transactions
 - totals_transaction_revenue
 - totals_total_transaction_revenue
 - transaction_revenue
 - total_transaction_revenue
-- made_purchase
--> Sử dụng 1 target duy nhất.
-Những cột target khác nên giữ để kiểm tra, nhưng không dùng làm feature khi model.
-Những cột :
-- transaction_revenue
-- total_transaction_revenue
-- totals_transaction_revenue
-- totals_total_transaction_revenue
-- made_purchase
-phải được đauw vào danh sách target/leakage columns, không sử dụng làm input feature.
 
-6. Xử lý lỗi label nhỏ:
-Ta có:
-- made_purchase = 1 nhưng revenue = 0
-- transaction_positive_but_no_revenue
--> cần xem xét lại định nghĩa label nhất quán.
+Nguyên tắc:
+- Nếu bất kỳ revenue source nào > 0 thì session_has_purchase_signal = 1.
+- Nếu transaction source > 0 nhưng revenue bằng 0, vẫn ghi nhận là transaction-only signal để kiểm tra quality.
+- Revenue/transaction source columns phải được đưa vào danh sách leakage/source columns.
+- Các cột này không được dùng làm feature model vì sẽ gây leakage cho bài toán dự đoán mua hàng tương lai.
 
-7. Chuẩn hóa categorical values
-Một số cột nên clean text:
-- lowercase
-- trim khoảng trắng
-- gom rare category thành "other"
+6. Kiểm tra quality của source signal
 
-Áp dụng cho:
+Thay vì kiểm tra quality target cũ, kiểm tra consistency của purchase source signal hiện tại:
+- số session có session_has_purchase_signal = 1
+- số session có revenue > 0
+- số session transaction-only
+- số session có revenue âm hoặc bất thường
+- phân bố session_purchase_signal_source
+
+Kết quả cần tạo các cột hỗ trợ kiểm tra:
+- source_signal_quality_status
+- source_signal_quality_decision
+- is_revenue_positive_signal
+- is_transaction_only_signal
+
+Các cột này phục vụ audit/EDA, không phải target supervised cuối cùng.
+
+7. Chuẩn hóa categorical values cho EDA/model
+
+Tạo phiên bản categorical sạch dạng `_model` cho các cột quan trọng:
 - traffic_source_clean
 - traffic_medium_clean
 - traffic_channel_type
@@ -76,34 +130,136 @@ Một số cột nên clean text:
 - geo_country
 - device_category
 - channelGrouping
-Lý do: model sau này sẽ cần encoding, và category quá hiếm dễ gây nhiễu.
 
-8. Tạo cột phục vụ cho EDA/model.
-Từ session-level clean, tạo thêm các cột tiện dùng:
-- is_purchase_session
-- revenue_log = log1p(target_revenue)
-- is_bounce = totals_bounces == 1
+Nguyên tắc:
+- lowercase
+- trim khoảng trắng
+- chuẩn hóa placeholder thành unknown
+- gom rare category thành other
+- không để placeholder thô/null trong các cột feature categorical chính
+
+Mục tiêu:
+- Các cột `_model` sẵn sàng cho EDA và encoding ở các bước sau.
+- Vẫn có thể giữ một số cột raw phục vụ audit nếu cần.
+
+8. Tạo derived features không target
+
+Tạo thêm các cột tiện dùng cho EDA/model nhưng không chứa thông tin future label:
+- is_bounce
 - has_pageviews
 - session_month_key
 
-9. Ghi clean Parquet
-Tạo
-- data_pyspark_parquet/train_sessions_clean
-- data_pyspark_parquet/test_sessions_clean
-Nên partition giống như bản gốc.
+Không tạo các cột target cũ:
+- is_purchase_session
+- revenue_log
+- target_has_purchase
+- target_revenue
 
-10. Validation sau cleaning
-Sau khi clean xong cần tạo bảng kiểm tra:
-- before_rows
-- after_rows
-- removed_duplicate_rows
-- duplicate_session_after_clean
-- null/placeholder còn lại ở cột quan trọng
-- target_has_purchase distribution
-- target_revenue summary
+Lý do:
+- Bài toán mới dự đoán future purchase/revenue.
+- Revenue của current session chỉ là source signal để tạo future label, không phải target của session hiện tại.
+
+9. Tạo future 30-day label ở cuối pipeline
+
+Sau khi dữ liệu đã clean hoàn toàn, tạo label bằng future sessions trong cùng split.
+
+Label cần tạo:
+- future_30d_has_purchase
+- future_30d_revenue
+- future_30d_purchase_count
+- future_30d_first_purchase_timestamp
+- days_to_first_purchase
+- has_full_30d_label_window
+
+Cách tạo:
+- Không self-join anchor sessions với purchase events, vì cách này có thể làm nổ số dòng trung gian và khiến JVM chết.
+- Tạo bảng label base rất hẹp, chỉ gồm:
+  - fullVisitorId
+  - visit_id
+  - visit_start_time
+  - visit_start_timestamp
+  - session_date
+  - session_has_purchase_signal
+  - session_revenue_signal
+- Ghi label base ra Parquet tạm rồi đọc lại để cắt Spark lineage dài trước khi tính window.
+- Dùng Spark window theo từng fullVisitorId:
+  - partitionBy(fullVisitorId)
+  - orderBy(visit_start_time)
+  - rangeBetween(1 second, 30 days)
+- rangeBetween bắt đầu từ 1 second để đảm bảo current session không được tính vào label.
+- Aggregate bằng window về session hiện tại:
+  - future_30d_has_purchase = 1 nếu có ít nhất 1 future purchase trong window
+  - future_30d_revenue = tổng session_revenue_signal trong window
+  - future_30d_purchase_count = số future purchase sessions trong window
+  - future_30d_first_purchase_timestamp = thời điểm future purchase đầu tiên
+  - days_to_first_purchase = số ngày tới future purchase đầu tiên
+- Ghi label result ra Parquet tạm rồi đọc lại.
+- Sau khi tính label trên bảng hẹp, chỉ join label columns về dataframe clean khi ghi output hoặc khi thật sự cần dùng.
+- Không persist dataframe wide sau khi join label, vì dễ làm Spark local/JVM bị quá tải.
+
+Với session không đủ future window:
+- has_full_30d_label_window = 0
+- future_30d_has_purchase = null
+- future_30d_revenue = null
+- future_30d_purchase_count = null
+- days_to_first_purchase = null
+
+Các session này vẫn giữ lại cho EDA, nhưng phải exclude khỏi supervised training.
+
+Assumption:
+- Label được tạo riêng trong từng split.
+- Train chỉ dùng future sessions trong train.
+- Test chỉ dùng future sessions trong test.
+- Không join chéo train/test.
+
+10. Ghi clean Parquet theo column chunks
+
+Ghi output mới:
+- data_pyspark_parquet/train_sessions_clean_30d_label
+- data_pyspark_parquet/test_sessions_clean_30d_label
+
+Do dữ liệu rộng và Spark JVM từng bị chết khi đọc nhiều cột cùng lúc, output nên ghi theo column chunks:
+- chunk metadata/key/session columns
+- chunk feature columns
+- chunk source signal/leakage audit columns
+- chunk future label columns
+
+Manifest cần ghi rõ:
+- label_window_days = 30
+- label_type = future_window
+- output paths
+- row counts
+- column chunks
+- model target columns
+- leakage/source columns cần exclude khỏi model input
+
+11. Validation sau cleaning và label
+
+Validation cuối cần kiểm tra:
+- duplicate session key sau clean = 0
+- future_30d_has_purchase chỉ có 0/1/null
+- null label chỉ xuất hiện khi has_full_30d_label_window = 0
+- session không đủ full 30-day window không bị ép label thành 0
+- future_30d_revenue >= 0
+- nếu future_30d_revenue > 0 thì future_30d_has_purchase = 1
+- feature categorical chính không còn placeholder thô/null
+- dữ liệu gốc train_sessions và test_sessions vẫn giữ nguyên
+
 Kết quả mong muốn:
-- duplicate key = 0
-- target_has_purchase chỉ có 0/1
-- target_revenue >= 0
-- các cột feature chính không còn placeholder thô
-- dữ liệu gốc vẫn được giữ nguyên
+- dữ liệu clean có thể dùng ngay cho EDA
+- supervised training chỉ dùng các dòng has_full_30d_label_window = 1
+- current session revenue/transaction không bị dùng nhầm làm feature
+- future label phản ánh đúng hành vi mua hàng trong 30 ngày tiếp theo
+
+______________________________________________________________________________________
+
+Ghi chú quan trọng cho EDA/modeling tiếp theo:
+
+- Các cột future_30d_* là label hoặc label diagnostic.
+- Các cột session_*_signal và raw revenue/transaction chỉ dùng để audit hoặc tạo label, không dùng làm model input.
+- Khi train model classification:
+  - target = future_30d_has_purchase
+  - filter has_full_30d_label_window = 1
+- Khi train model regression revenue:
+  - target = future_30d_revenue
+  - nên cân nhắc chỉ train trên nhóm future_30d_has_purchase = 1, hoặc dùng two-stage model.

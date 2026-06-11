@@ -1,0 +1,216 @@
+Bài toán:
+Tại mỗi session hiện tại của một user, dựa trên thông tin session hiện tại và lịch sử trước đó của user,
+dự đoán user có phát sinh mua hàng trong 30 ngày tiếp theo sau session hiện tại hay không,
+và nếu có thì tổng doanh thu trong 30 ngày tiếp theo là bao nhiêu.
+
+Grain: 1 dòng = 1 user tại 1 session hiện tại
+Target: future_30d_has_purchase, future_30d_revenue
+
+Input chính: 
+data_pyspark_parquet/train_sessions_clean_30d_label
+data_pyspark_parquet/clean_30d_label_sessions_manifest.json
+
+Nguyên tắc : PySpark aggregate trước, chỉ toPandas khi bảng đã nhỏ.
+_______________________________________________________________________________________
+
+Các nhiệm vụ của phần EDA.
+Ta sẽ chỉ phân tích dữ liệu của tập train. Không đụng vào trong tập test.
+Nhưng quyết định về chuẩn hóa, biến đổi, chọn lọc đều dựa trên tập train. 
+Tập test chỉ đơn giản là biến đổi theo những quyết định đó, không dùng để phân tích.
+_______________________________________________________________________________________
+1. Overview bài toán
+Kiểm tra xem:
+Có bao nhiêu session đủ label 30 ngày?
+Có bao nhiêu user?
+Tỷ lệ future purchase là bao nhiêu?
+Doanh thu future 30d phân phối thế nào?
+
+2. Phân tích target classification
+Bài toán có mất cân bằng không?
+Tỷ lệ khách/session có mua trong 30 ngày tới là bao nhiêu?
+
+3. Phân tích target revenue
+Xem xem Doanh thu có bị long-tail không?
+Có outlier không?
+Có nên dùng log1p revenue không?
+
+4. EDA theo từng nhóm dưới đây.
+Ta sẽ cần join lại các chunk dựa trên: fullVisitorId + visit_id
+Tạo eda_train_df với các nhóm:
+- Nhóm eda_base_keys_df:
+    + fullVisitorId
+    + visit_id
+    + session_date
+    + session_year
+    + session_month
+    + session_month_key
+    + has_full_30d_label_window
+Ta sẽ dùng để lọc train, lọc các session có đủ 30 cho label, 
+join các bảng khác và phân tích theo thời gian. (DONE)
+
+- Nhóm eda_target_df:
+    + fullVisitorId
+    + visit_id
+    + future_30d_has_purchase
+    + future_30d_revenue
+    + future_30d_purchase_count
+    + days_to_first_purchase
+    + has_full_30d_label_window
+Được sử dụng để phân tích bài toán, trả lời các câu hỏi như tỉ lệ mua trong 30 ngày tới là bao nhiêu,
+doanh thu phân phối như nào, target có mất cân bằng không, doanh thu có long-tail không (DONE)
+
+- Nhóm eda_time_df
+    + fullVisitorId
+    + visit_id
+    + session_date
+    + session_year
+    + session_month
+    + session_month_key
+    + session_day_of_week
+    + session_hour
+Mục đích là để phân tích xu hướng theo thời gian.
+Purchase rate thay đổi theo ngày/tháng không?
+Giờ/ngày trong tuần có ảnh hưởng đến future purchase không?
+Có giai đoạn nào dữ liệu bị thiếu label không? (DONE)
+
+- Nhóm eda_traffic_df
+    + fullVisitorId
+    + visit_id
+    + channelGrouping_model
+    + traffic_source_clean_model
+    + traffic_medium_clean_model
+    + traffic_channel_type_model
+    + is_direct_traffic
+    + is_paid_traffic
+    + is_organic_traffic
+    + is_referral_traffic
+    + has_traffic_keyword
+    + has_gclid
+    + has_traffic_campaign
+    + has_traffic_ad_content
+    + has_referral_path
+Xem xem channel nào có future purchase rate cao?
+Source nào mang lại revenue tốt?
+Organic/direct/referral/paid khác nhau thế nào? (DONE)
+
+- Nhóm thiết bị eda_device_df :
+    + fullVisitorId
+    + visit_id
+    + device_category_model
+    + device_is_mobile
+    + browser_family_model
+    + os_family_model
+Phân tích sự ảnh hưởng của thiết bọ tới quyết định mua hàng.(DONE)
+
+
+- Nhóm bảng địa lý eda_geo_df :
+    + fullVisitorId
+    + visit_id
+    + geo_country_model
+    + geo_continent
+    + geo_sub_continent
+    + has_geo_region
+    + has_geo_metro
+trả lời câu hỏi Quốc gia nào nhiều traffic nhất?
+Quốc gia nào có future revenue cao?
+Geo có bị lệch mạnh về một thị trường không?
+
+- Nhóm bảng eda_engagement_df
+    + fullVisitorId
+    + visit_id
+    + visit_number
+    + totals_hits
+    + totals_pageviews
+    + totals_bounces
+    + totals_new_visits
+    + totals_time_on_site
+    + totals_session_quality_dim
+    + is_bounce
+    + has_pageviews
+    + is_socially_engaged
+Trả lời các câu hỏi User/session tương tác nhiều hơn có dễ mua trong 30 ngày tới không?
+Bounce có làm giảm xác suất mua không?
+Returning visit có tốt hơn new visit không?
+
+- Nhóm bảng eda_sparse_flags_df:
+    + fullVisitorId
+    + visit_id
+    + has_traffic_keyword
+    + has_gclid
+    + has_traffic_campaign
+    + has_traffic_ad_content
+    + has_referral_path
+    + has_geo_metro
+    + has_custom_dimension
+    + has_geo_region
+Xem xem Có campaign/ad/referral/gclid thì purchase rate có khác không?
+Các flag thay thế raw sparse column có hữu ích không?
+
+- Nhóm phân tích theo user-level eda_user_history_df.
+Phân tích dựa trên lịch sử hoạt động của user trên nền tảng.
+Hiện tại grain đang là 1 dòng = 1 user tại 1 session
+Các feature nên tạo
+    - user_total_sessions_to_date
+    - user_total_hits_to_date
+    - user_total_pageviews_to_date
+    - user_total_time_on_site_to_date
+    - user_avg_hits_to_date
+    - user_avg_pageviews_to_date
+    - user_avg_time_on_site_to_date
+    - user_bounce_rate_to_date
+    - user_new_visit_rate_to_date
+    - user_previous_purchase_count
+    - user_previous_revenue
+    - user_days_since_previous_purchase
+    - user_main_channel_to_date
+    - user_main_device_to_date
+    - user_main_country_to_date
+    - user_active_days_to_date
+    - user_days_since_first_session
+    - user_days_since_previous_session
+    - user_sessions_last_7d
+    - user_sessions_last_30d
+    - user_sessions_last_90d
+Đi kèm với target : future_30d_has_purchase, future_30d_revenue
+Nhóm phân tích user-level nên làm : 
+- User activity level: User vào web nhiều lần hơn có dễ mua trong 30 ngày tới không?
+Có thể tạo các bucket trên session.
+- Recency: User vừa quay lại gần đây có dễ mua hơn không?
+Tạo bucket như: same day, 1-3 days, 4-7 days, 8-30 days, 31-90 days, 90+ days, first visit
+- Frequency: Tần suất vào web có liên quan tới mua hàng không?
+- Monetary history:
+User từng mua trước đây có khả năng mua tiếp không?
+User đã chi nhiều tiền trước đây có tiếp tục tạo revenue không?
+Chia bucket:
+    previous_purchase_count:
+    0
+    1
+    2
+    3+
+
+    previous_revenue:
+    0
+    low
+    medium
+    high
+
+- Engagement history : User tương tác nhiều trong quá khứ có khả năng mua trong tương lai không?
+    - user_total_pageviews_to_date
+    - user_avg_pageviews_to_date
+    - user_total_time_on_site_to_date
+    - user_avg_time_on_site_to_date
+    - user_bounce_rate_to_date
+
+5. Insight summary
+Đưa ra các insight, tóm gọn lại.
+1. Target có mất cân bằng không?
+2. Revenue có long-tail không?
+3. Channel nào quan trọng?
+4. Device/geo nào nổi bật?
+5. Engagement có liên quan đến future purchase không?
+6. Những feature nào nên đưa vào model?
+7. Những cột nào tuyệt đối không dùng vì leakage?
+_______________________________________________________________________________________
+Các thuộc tính sẽ chọn:
+Giờ và ngày trong tuần
+traffic_channel_type

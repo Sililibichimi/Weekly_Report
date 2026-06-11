@@ -66,14 +66,13 @@ thành -> data_pyspark_parquet/train_sessions/ và data_pyspark_parquet/test_ses
 - Bước 4: Chọn cột cần giữ ở mức session-level | Done
 - Bước 5: Parse các cột json quan trọng | Done
 - Bước 6: Tạo các cột numeric sạch | Done
-- Bước 7: Tạo label mua hàng -> phục vụ bài phân loại sau này.
-- Bước 8: Parse thêm device, geoNetwork, trafficSource hay là các cột quan trọng | Done
-- Bước 9: Drop các cột json gốc nặng | Done
-- Bước 10: Thử sample ra parquet. | Done
-- Bước 11: Ghi ra full train ra parquet. | Done
-- Bước 12: Làm tương tự với test. | Done
-- Bước 13: Kiểm tra lại sau khi ghi parquet. | Done
-- Bước 14: Ghi lại kết quả log. | Done
+- Bước 7: Parse thêm device, geoNetwork, trafficSource hay là các cột quan trọng | Done
+- Bước 8: Drop các cột json gốc nặng | Done
+- Bước 9: Thử sample ra parquet. | Done
+- Bước 10: Ghi ra full train ra parquet. | Done
+- Bước 11: Làm tương tự với test. | Done
+- Bước 12: Kiểm tra lại sau khi ghi parquet. | Done
+- Bước 13: Ghi lại kết quả log. | Done
 _______________________________________________________________________________
 Tổng hợp các cột của dữ liệu sau khi tách các biến json và tạo thêm các cột mới
 TỔNG HỢP:
@@ -165,13 +164,6 @@ totals_transaction_revenue	        bigint
 totals_total_transaction_revenue	  bigint
 transaction_revenue	                double
 total_transaction_revenue	          double
-
-8. Cột label
-
-Cột	                      Kiểu dữ liệu
-made_purchase	            int
-purchase_signal_reason	  string
-
 
 Các cột đã loại bỏ và lý do
 
