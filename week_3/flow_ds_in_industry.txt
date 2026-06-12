@@ -1,6 +1,6 @@
 Một bài toán DS trong thực tế
 
-Flow chính thường là mô hình CRISP DM,
+Flow chính thường là theo mô hình CRISP DM,
 - Bước đầu tiên là : Business Understanding.
 Ứng với mỗi doanh nghiệp, lĩnh vực, hay bài toán khác nhau thì kiến thức cần để chuẩn bị cho bài toán đó cũng khác nhau. Chúng ta cần phải có kiến thức riêng cho từng loại dữ liệu ứng với bài toán đó để đưa ra được những insight đúng với bài toán đó.
 Ở đây chúng ta cũng cần xác định được mục tiêu của bài toán ứng với mục tiêu khai phá dữ liệu, ví dụ với mục tiêu chính là giảm thiểu khách hàng rời bỏ, thì ta phải phân tích được từ dữ liệu những thứ như nhóm rời bỏ là thì tỉ lệ như nào, ... Nếu những điều kiến đó gặp nhau, thì mục tiêu của ta mới thực hiện được.

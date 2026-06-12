@@ -35,16 +35,13 @@ Cache design:
 API Endpoints
 
 - GET /health
-
     - Kiểm tra API sống, model loaded, metadata loaded, cache status.
 - GET /model/info
-
     - Trả model_version, model_updated_at_utc, feature_set, feature_count, selected_threshold, metrics summary.
 - POST /sessions/lookup
     - Input: visitor_id, visit_id, dataset.
     - Output: session info, feature summary, ground truth nếu có.
 - POST /predict/session
-
     - Input: visitor_id, visit_id, dataset, include_features, include_ground_truth.
     - Output: input, matched session, model metadata, feature values, prediction, ground truth, warnings.
 
@@ -69,3 +66,17 @@ Assumptions
 - V1 dùng in-memory cache, chưa dùng Redis.
 - Input là session đã tồn tại trong feature table, chưa hỗ trợ raw unseen session.
 - API predict live bằng model .pkl, không chỉ lookup prediction đã lưu.
+_____________________________________________________________________________________
+
+LUỒNG HOẠT ĐỘNG CỦA API
+
+- Đầu tiên, ở trong main khi chạy, hệ thống sẽ cần phải tạo các bộ :
+    + app : FastAPI application
+    + cache_managet: quản lý cache
+    + model_service: quản lý model
+    + feature_store: Ban đầu là None
+
+- Khi bắt đầu chạy, hàm startup(), model sẽ được load cùng với các mtrics JSON -> Đây chính là model cache nằm trong RAM, giúp model không cần phải reload ở từng request.
+
+- File config.py chứa các đường đãn và cấu hình hệ thống.
+- Schemas.py định nghĩa định dạng cho mỗi request/response bằng Pydantic. Trong đây quan trọng nhất là SessionLookupRequest, giúp ta tìm kiếm được thông tin về lịch sử truy cập một session của 1 người, từ đó lấy được các thông tin yêu cầu.
