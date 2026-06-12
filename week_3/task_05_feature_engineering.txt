@@ -27,7 +27,6 @@ Nguyên tắc quan trọng:
 - Test chỉ apply/transform theo quy tắc đã fit từ train.
 - Không dùng test để chọn feature, chọn threshold, chọn bucket, hay ra insight.
 - Khi train/evaluate, chỉ dùng các dòng có has_full_30d_label_window = 1.
-
 ________________________________________________________________________________
 
 1. TẠO BẢNG NỀN MODELING
@@ -56,7 +55,6 @@ Kiểm tra:
 - key fullVisitorId + visit_id unique
 - train/test schema giống nhau
 - has_full_30d_label_window không null
-
 ________________________________________________________________________________
 
 2. TÁCH LABEL, FEATURE, LEAKAGE
@@ -250,65 +248,7 @@ Tổng số feature V1: khoảng 25 feature.
 
 ________________________________________________________________________________
 
-5. FEATURE SET V2 - EXTENDED OPTIONAL
-
-Chỉ thêm sau khi V1 đã chạy được modeling baseline.
-
-Có thể thêm:
-- traffic_source_clean_model
-- traffic_medium_clean_model
-- browser_family_model
-- os_family_model
-- is_direct_traffic
-- is_paid_traffic
-- is_organic_traffic
-- is_referral_traffic
-- has_traffic_keyword
-- has_traffic_ad_content
-- has_geo_region
-- has_geo_metro
-- has_custom_dimension
-- is_socially_engaged
-- user_previous_avg_hits
-- user_previous_new_visit_rate
-- user_previous_avg_revenue
-
-Mục tiêu:
-- Kiểm tra xem các categorical/flag chi tiết có cải thiện model không.
-- Nếu không cải thiện, quay lại V1.
-
-________________________________________________________________________________
-
-6. FEATURE SET V3 - ADVANCED OPTIONAL
-
-Chỉ thêm sau khi V1/V2 ổn.
-
-Rolling-window features:
-- sessions_last_7d
-- sessions_last_30d
-- sessions_last_90d
-- pageviews_last_30d
-- hits_last_30d
-- time_on_site_last_30d
-- purchase_count_last_90d
-- revenue_last_90d
-
-Bucket features:
-- visit_number_bucket
-- pageviews_bucket
-- time_on_site_bucket
-- previous_sessions_bucket
-- recency_bucket
-- previous_revenue_bucket
-
-Lưu ý:
-- Bucket threshold nếu tính theo percentile phải fit từ train only.
-- Test chỉ apply threshold đã fit từ train.
-- Rolling-window có thể tốn compute, nên để sau.
-
-________________________________________________________________________________
-
-7. XỬ LÝ NULL SAU KHI TẠO HISTORY
+5. XỬ LÝ NULL SAU KHI TẠO HISTORY
 
 Session đầu tiên của user sẽ có nhiều history null.
 Cần fill có chú ý:
@@ -331,7 +271,7 @@ Nếu thêm 2 flags này vào V1 thì tổng feature tăng thêm 2 cột, vẫn 
 
 ________________________________________________________________________________
 
-8. FIT TRAIN ONLY / TRANSFORM TEST
+6. FIT TRAIN ONLY / TRANSFORM TEST
 
 Những quyết định chỉ fit từ train:
 - danh sách feature V1/V2/V3
@@ -357,7 +297,7 @@ Những vẫn cần ghi trong manifest:
 
 ________________________________________________________________________________
 
-9. GHI OUTPUT
+7. GHI OUTPUT
 
 Output bắt buộc:
 - data_pyspark_parquet/train_user_session_features_30d
@@ -387,7 +327,7 @@ Manifest nên có:
 
 ________________________________________________________________________________
 
-10. VALIDATION FEATURE TABLE
+8. VALIDATION FEATURE TABLE
 
 Kiểm tra trước khi modeling:
 
@@ -414,41 +354,3 @@ Window/history:
 - is_first_session = 1 thì user_previous_sessions = 0
 - has_previous_purchase = 1 thì user_previous_purchase_count > 0
 - user_previous_purchase_count không được lấy từ session hiện tại
-
-________________________________________________________________________________
-
-11. DEBUG / SAMPLING CHO MODELING
-
-Vì dữ liệu lớn, không cần train full ngay từ đầu.
-
-Nên tạo sample debug:
-- Giữ toàn bộ positive class.
-- Sample 5-10% negative class.
-- Chỉ dùng để debug pipeline/model code.
-
-Lưu ý:
-- Final validation/evaluation phải dùng tập validation đầy đủ, đúng phân phối thật.
-- Không báo cáo metric chính trên debug sample.
-
-________________________________________________________________________________
-
-CHECKLIST HOÀN THÀNH
-
-- [ ] Đọc được train/test clean 30d label theo chunk.
-- [ ] Tạo bảng nền modeling với fullVisitorId + visit_id.
-- [ ] Tách label, feature, leakage rõ ràng.
-- [ ] Tạo Feature Set V1 khoảng 25 feature.
-- [ ] Tạo user-history feature bằng window, không dùng session hiện tại cho purchase/revenue history.
-- [ ] Fill null cho history feature.
-- [ ] Tạo is_first_session và has_previous_purchase.
-- [ ] Ghi train_user_session_features_30d.
-- [ ] Ghi test_user_session_features_30d.
-- [ ] Ghi feature_engineering_manifest.json.
-- [ ] Validate row count, schema, key uniqueness.
-- [ ] Validate label distribution và feature null count.
-- [ ] Validate không có leakage columns trong feature list.
-
-Bước tiếp theo:
-- 06_modeling_baseline.ipynb
-- Train classification baseline cho future_30d_has_purchase.
-- Train regression baseline cho future_30d_revenue trên các dòng future_30d_revenue > 0.

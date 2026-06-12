@@ -1,0 +1,175 @@
+TASK 06: MODELING VOI LIGHTGBM
+
+Bai toan:
+- Du doan user co mua trong 30 ngay tiep theo sau session hien tai hay khong.
+- Neu co, du doan doanh thu trong 30 ngay tiep theo.
+
+Input:
+- data_pyspark_parquet/train_user_session_features_30d
+- data_pyspark_parquet/test_user_session_features_30d
+- data_pyspark_parquet/feature_validation_report.json
+
+Feature set:
+- Dung feature set V1 da tao o buoc feature engineering.
+- Khong lap lai validation chi tiet cua feature table, vi da kiem tra o task 05.
+
+Modeling strategy:
+- Model 1: LightGBMClassifier cho future_30d_has_purchase.
+- Model 2: LightGBMRegressor cho future_30d_revenue, train tren rows co future_30d_revenue > 0.
+- Ket qua cuoi:
+  expected_revenue_30d = purchase_probability * predicted_revenue_if_purchase
+
+________________________________________________________________________________
+
+1. DOC DU LIEU MODELING
+
+Can lam:
+- Doc train_user_session_features_30d.
+- Doc test_user_session_features_30d.
+- Loc has_full_30d_label_window = 1.
+- Chon cac cot:
+  + key/meta columns
+  + feature set V1
+  + future_30d_has_purchase
+  + future_30d_revenue
+
+Ghi chu:
+
+- Co the doc bang PySpark roi convert sang pandas.
+- Neu pandas bi nang, co the sample debug truoc.
+
+________________________________________________________________________________
+
+2. CHIA TRAIN / VALIDATION THEO THOI GIAN
+
+Khong random split.
+
+De xuat:
+- train_split: session_date < 2018-03-01
+- validation_split: 2018-03-01 <= session_date <= 2018-03-31
+
+Muc tieu:
+- Mo phong viec train tren qua khu va du doan tuong lai.
+- Validation dung de chon threshold va model.
+
+________________________________________________________________________________
+
+3. CHUAN BI DU LIEU CHO LIGHTGBM
+
+Feature:
+- Numeric/binary giu nguyen.
+- Categorical convert sang pandas category:
+  + channelGrouping_model
+  + traffic_channel_type_model
+  + device_category_model
+  + geo_country_model
+
+Label:
+- Classification label: future_30d_has_purchase
+- Regression label: log1p(future_30d_revenue)
+
+Luu y:
+- Test chi transform theo cung format, khong fit rule moi tu test.
+
+________________________________________________________________________________
+
+4. TRAIN MODEL 1: PURCHASE CLASSIFICATION
+
+Model:
+- LightGBMClassifier
+
+Xu ly imbalance:
+- scale_pos_weight = negative_count / positive_count
+
+Metric validation:
+- accuracy
+- precision
+- recall
+- confusion matrix
+
+Threshold:
+- Khong mac dinh dung 0.5.
+- Chon threshold tren validation theo F1 hoac precision/recall tradeoff.
+
+Output:
+- purchase_probability_30d
+- selected_threshold
+- predicted_purchase_30d
+-> Lưu lại model để phục vụ việc kết nối với api
+________________________________________________________________________________
+
+5. TRAIN MODEL 2: CONDITIONAL REVENUE REGRESSION
+
+Train data:
+- Chi dung rows co future_30d_revenue > 0.
+
+Target:
+- log_future_30d_revenue = log1p(future_30d_revenue)
+
+Model:
+- LightGBMRegressor
+
+Metric validation tren positive revenue rows:
+- RMSE log scale
+- MAE log scale
+- RMSE revenue scale
+- MAE revenue scale
+
+Output:
+- predicted_revenue_if_purchase_30d = expm1(predicted_log_revenue)
+-> Lưu lại model để phục vụ việc kết nối với api
+________________________________________________________________________________
+
+6. KET HOP THANH EXPECTED REVENUE
+
+Cong thuc:
+- expected_revenue_30d = purchase_probability_30d * predicted_revenue_if_purchase_30d
+
+Evaluate tren validation full rows:
+- MAE
+- RMSE
+- revenue capture top 1%, 5%, 10%
+- correlation neu can
+
+________________________________________________________________________________
+
+7. FINAL TEST EVALUATION
+
+Chi lam sau khi da chot:
+- model classification
+- model regression
+- selected_threshold
+
+Tren test:
+- Khong refit.
+- Khong chon lai threshold.
+- Chi predict va tinh metric final.
+
+Neu chua can dung test:
+- Bo qua test evaluation lan dau.
+- Chi bao cao validation metrics.
+
+________________________________________________________________________________
+
+8. LUU OUTPUT
+
+Can luu:
+- models/lgbm_purchase_classifier_30d.pkl
+- models/lgbm_revenue_regressor_30d.pkl
+- data_pyspark_parquet/modeling_outputs/classification_predictions
+- data_pyspark_parquet/modeling_outputs/regression_predictions
+- data_pyspark_parquet/modeling_outputs/expected_revenue_predictions
+- data_pyspark_parquet/modeling_outputs/modeling_metrics.json
+- data_pyspark_parquet/modeling_outputs/modeling_manifest.json
+
+Manifest can ghi:
+- feature set
+- train/validation split
+- categorical features
+- numeric features
+- selected threshold
+- classification metrics
+- regression metrics
+- expected revenue metrics
+
+________________________________________________________________________________

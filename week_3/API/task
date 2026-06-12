@@ -1,0 +1,71 @@
+Title: API Serving System Với Cache Cho Future 30D Purchase / Revenue
+
+Summary
+
+- Tạo folder riêng: week_3/api_serving/.
+- Xây dựng FastAPI service có Swagger tại /docs.
+- V1 nhận visitor_id + session_id, lookup session đã có trong feature table, trả session info, feature đưa vào model, model metadata và prediction.
+- Thêm cache 3 lớp: model cache, feature lookup cache, prediction cache.
+
+Key Changes
+
+- Folder structure:
+
+    - week_3/api_serving/main.py: FastAPI app và routes.
+    - week_3/api_serving/config.py: đường dẫn artifact/model/data.
+    - week_3/api_serving/schemas.py: Pydantic request/response schemas.
+    - week_3/api_serving/model_service.py: load model một lần, chuẩn hóa feature, predict.
+    - week_3/api_serving/feature_store.py: lookup feature row từ train/test feature table.
+    - week_3/api_serving/cache.py: in-memory cache utilities.
+    - week_3/api_serving/README.md: hướng dẫn chạy API.
+Cache design:
+
+- Model cache:
+    - Load classifier, regressor, metadata một lần khi app startup.
+    - Không load model lại ở từng request.
+- Feature lookup cache:
+    - Key: (dataset, visitor_id, session_id).
+    - Value: session row + feature row.
+    - Dùng TTLCache hoặc lru_cache, max khoảng 10,000 records.
+- Prediction cache:
+    - Key: (model_version, dataset, visitor_id, session_id).
+    - Value: full prediction response.
+    - Khi model version đổi, cache cũ tự không được reuse vì key khác.
+
+API Endpoints
+
+- GET /health
+
+    - Kiểm tra API sống, model loaded, metadata loaded, cache status.
+- GET /model/info
+
+    - Trả model_version, model_updated_at_utc, feature_set, feature_count, selected_threshold, metrics summary.
+- POST /sessions/lookup
+    - Input: visitor_id, session_id, dataset.
+    - Output: session info, feature summary, ground truth nếu có.
+- POST /predict/session
+
+    - Input: visitor_id, session_id, dataset, include_features, include_ground_truth.
+    - Output: input, matched session, model metadata, feature values, prediction, ground truth, warnings.
+
+- GET /cache/status
+    - Trả số lượng item đang cache ở feature cache và prediction cache.
+
+- POST /cache/clear
+    - Xóa feature/prediction cache thủ công khi cần demo lại hoặc update data/model.
+
+Test Plan
+- Test API startup load đủ 2 model .pkl và metadata JSON.
+- Test /health trả model_loaded = true.
+- Test /model/info có feature_count = 27, selected_threshold = 0.5.
+- Test lookup một key tồn tại trong train/test.
+- Test key không tồn tại trả 404.
+- Test /predict/session trả probability trong [0, 1], revenue không âm.
+- Test gọi cùng một key 2 lần: lần 2 có cache_hit = true
+- Test /cache/clear làm cache size về 0.
+
+Assumptions
+- V1 là local/demo API, chưa cần authentication.
+- V1 dùng in-memory cache, chưa dùng Redis.
+- Input là session đã tồn tại trong feature table, chưa hỗ trợ raw unseen session.
+- API predict live bằng model .pkl, không chỉ lookup prediction đã lưu.
