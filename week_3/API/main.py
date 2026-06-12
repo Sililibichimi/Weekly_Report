@@ -75,7 +75,7 @@ def model_info() -> dict:
 def lookup_session(request: SessionLookupRequest) -> dict:
     _ensure_ready()
     request_id = str(uuid4())
-    lookup = _lookup_or_raise(request.visitor_id, request.session_id, request.dataset)
+    lookup = _lookup_or_raise(request.visitor_id, request.visit_id, request.dataset)
     row = lookup.row
 
     return {
@@ -83,7 +83,7 @@ def lookup_session(request: SessionLookupRequest) -> dict:
         "found": True,
         "cache_hit": lookup.cache_hit,
         "dataset": lookup.dataset,
-        "session_key": SessionKey(visitor_id=request.visitor_id, session_id=request.session_id),
+        "session_key": SessionKey(visitor_id=request.visitor_id, visit_id=request.visit_id),
         "session_info": feature_store.session_info(row),
         "features": feature_store.features(row),
         "ground_truth": feature_store.ground_truth(row),
@@ -99,7 +99,7 @@ def predict_session(request: PredictSessionRequest) -> dict:
         model_service.model_version,
         request.dataset,
         request.visitor_id,
-        int(request.session_id),
+        int(request.visit_id),
         bool(request.include_features),
         bool(request.include_ground_truth),
     )
@@ -110,7 +110,7 @@ def predict_session(request: PredictSessionRequest) -> dict:
         cached_response["cache_hit"] = True
         return cached_response
 
-    lookup = _lookup_or_raise(request.visitor_id, request.session_id, request.dataset)
+    lookup = _lookup_or_raise(request.visitor_id, request.visit_id, request.dataset)
     row = lookup.row
     features = feature_store.features(row)
 
@@ -124,13 +124,13 @@ def predict_session(request: PredictSessionRequest) -> dict:
         "cache_hit": False,
         "input": {
             "visitor_id": request.visitor_id,
-            "session_id": request.session_id,
+            "visit_id": request.visit_id,
             "dataset": request.dataset,
         },
         "matched_session": {
             "dataset": lookup.dataset,
             "visitor_id": request.visitor_id,
-            "session_id": request.session_id,
+            "visit_id": request.visit_id,
             "feature_cache_hit": lookup.cache_hit,
         },
         "model": model_service.info(),
@@ -162,13 +162,12 @@ def _ensure_ready() -> None:
         raise HTTPException(status_code=503, detail="Feature store is not ready")
 
 
-def _lookup_or_raise(visitor_id: str, session_id: int, dataset: str):
+def _lookup_or_raise(visitor_id: str, visit_id: int, dataset: str):
     try:
-        return feature_store.lookup(visitor_id=visitor_id, session_id=session_id, dataset=dataset)
+        return feature_store.lookup(visitor_id=visitor_id, visit_id=visit_id, dataset=dataset)
     except SessionNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except DuplicateSessionError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except FeatureStoreError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
-

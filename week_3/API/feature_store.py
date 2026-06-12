@@ -58,27 +58,27 @@ class FeatureStore:
             self.key_columns + self.meta_columns + self.feature_columns + self.label_columns
         )
 
-    def lookup(self, visitor_id: str, session_id: int, dataset: str = "auto") -> FeatureLookupResult:
+    def lookup(self, visitor_id: str, visit_id: int, dataset: str = "auto") -> FeatureLookupResult:
         dataset = dataset.lower()
         if dataset == "auto":
             for candidate_dataset in ("train", "test"):
                 try:
-                    return self.lookup(visitor_id, session_id, candidate_dataset)
+                    return self.lookup(visitor_id, visit_id, candidate_dataset)
                 except SessionNotFoundError:
                     continue
             raise SessionNotFoundError(
-                f"Session not found in train or test: visitor_id={visitor_id}, session_id={session_id}"
+                f"Session not found in train or test: visitor_id={visitor_id}, visit_id={visit_id}"
             )
 
         if dataset not in DATASET_PATHS:
             raise FeatureStoreError(f"Unsupported dataset: {dataset}")
 
-        cache_key = (dataset, str(visitor_id), int(session_id))
+        cache_key = (dataset, str(visitor_id), int(visit_id))
         cached = self.cache_manager.feature_cache.get(cache_key)
         if cached is not None:
             return FeatureLookupResult(dataset=dataset, row=cached, cache_hit=True)
 
-        row = self._read_one_row(DATASET_PATHS[dataset], visitor_id, session_id, dataset)
+        row = self._read_one_row(DATASET_PATHS[dataset], visitor_id, visit_id, dataset)
         self.cache_manager.feature_cache.set(cache_key, row)
         return FeatureLookupResult(dataset=dataset, row=row, cache_hit=False)
 
@@ -116,7 +116,7 @@ class FeatureStore:
         return {column: row.get(column) for column in self.label_columns if column in row}
 
     def _read_one_row(
-        self, path: Path, visitor_id: str, session_id: int, dataset_name: str
+        self, path: Path, visitor_id: str, visit_id: int, dataset_name: str
     ) -> dict[str, Any]:
         if not path.exists():
             raise FeatureStoreError(f"Feature table path does not exist: {path}")
@@ -131,16 +131,16 @@ class FeatureStore:
             )
 
         row_filter = (pc.field("fullVisitorId") == str(visitor_id)) & (
-            pc.field("visit_id") == int(session_id)
+            pc.field("visit_id") == int(visit_id)
         )
         table = arrow_dataset.to_table(columns=selected_columns, filter=row_filter)
         if table.num_rows == 0:
             raise SessionNotFoundError(
-                f"Session not found in {dataset_name}: visitor_id={visitor_id}, session_id={session_id}"
+                f"Session not found in {dataset_name}: visitor_id={visitor_id}, visit_id={visit_id}"
             )
         if table.num_rows > 1:
             raise DuplicateSessionError(
-                f"Duplicate session rows in {dataset_name}: visitor_id={visitor_id}, session_id={session_id}"
+                f"Duplicate session rows in {dataset_name}: visitor_id={visitor_id}, visit_id={visit_id}"
             )
 
         pdf = table.to_pandas()
@@ -167,4 +167,3 @@ class FeatureStore:
     @staticmethod
     def _unique(values: list[str]) -> list[str]:
         return list(dict.fromkeys(values))
-

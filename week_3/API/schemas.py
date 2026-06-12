@@ -10,7 +10,7 @@ DatasetName = Literal["auto", "train", "test"]
 
 class SessionLookupRequest(BaseModel):
     visitor_id: str = Field(..., description="Google Analytics fullVisitorId")
-    session_id: int = Field(..., description="Clean numeric visit_id/session id")
+    visit_id: int = Field(..., description="Clean numeric visit_id")
     dataset: DatasetName = Field(default="auto", description="Dataset lookup policy")
 
 
@@ -21,7 +21,7 @@ class PredictSessionRequest(SessionLookupRequest):
 
 class SessionKey(BaseModel):
     visitor_id: str
-    session_id: int
+    visit_id: int
 
 
 class ModelInfo(BaseModel):
@@ -58,4 +58,3 @@ class PredictionResponse(BaseModel):
     prediction: dict[str, Any]
     ground_truth: dict[str, Any] | None
     warnings: list[str] = []
-

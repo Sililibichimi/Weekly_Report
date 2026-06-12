@@ -4,7 +4,7 @@ Summary
 
 - Tạo folder riêng: week_3/api_serving/.
 - Xây dựng FastAPI service có Swagger tại /docs.
-- V1 nhận visitor_id + session_id, lookup session đã có trong feature table, trả session info, feature đưa vào model, model metadata và prediction.
+- V1 nhận visitor_id + visit_id, lookup session đã có trong feature table, trả session info, feature đưa vào model, model metadata và prediction.
 - Thêm cache 3 lớp: model cache, feature lookup cache, prediction cache.
 
 Key Changes
@@ -24,11 +24,11 @@ Cache design:
     - Load classifier, regressor, metadata một lần khi app startup.
     - Không load model lại ở từng request.
 - Feature lookup cache:
-    - Key: (dataset, visitor_id, session_id).
+    - Key: (dataset, visitor_id, visit_id).
     - Value: session row + feature row.
     - Dùng TTLCache hoặc lru_cache, max khoảng 10,000 records.
 - Prediction cache:
-    - Key: (model_version, dataset, visitor_id, session_id).
+    - Key: (model_version, dataset, visitor_id, visit_id).
     - Value: full prediction response.
     - Khi model version đổi, cache cũ tự không được reuse vì key khác.
 
@@ -41,11 +41,11 @@ API Endpoints
 
     - Trả model_version, model_updated_at_utc, feature_set, feature_count, selected_threshold, metrics summary.
 - POST /sessions/lookup
-    - Input: visitor_id, session_id, dataset.
+    - Input: visitor_id, visit_id, dataset.
     - Output: session info, feature summary, ground truth nếu có.
 - POST /predict/session
 
-    - Input: visitor_id, session_id, dataset, include_features, include_ground_truth.
+    - Input: visitor_id, visit_id, dataset, include_features, include_ground_truth.
     - Output: input, matched session, model metadata, feature values, prediction, ground truth, warnings.
 
 - GET /cache/status
