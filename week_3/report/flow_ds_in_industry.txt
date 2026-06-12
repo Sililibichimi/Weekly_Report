@@ -30,8 +30,8 @@ Sau đó chúng ta sẽ khám phá dữ liệu:
 + Thuộc tính nào hữu ích, liên quan đến mục tiêu của bài toán.
 ....
 
-- Bước 3 là chuẩn bị dữ liệu : Data preparation overview.
-Ở đây, dựa trên các kết quả đã phân tích từ bước trước, ta sẽ có những sau
+- Bước 3 là chuẩn bị dữ liệu : Data preparation overview.(Theo em hiểu thì nó giống với feature engineering)
+Ở đây, dựa trên các kết quả đã phân tích từ bước trước, ta sẽ có những bước sau
 
 + Trước tiên, ta sẽ cần phải kết hợp lại dữ liệu nếu cần, ví dụ nếu có nhiều bảng, dữ liệu bị chia, ta cần kết hợp lại, sắp xếp lại chúng nếu cần đề đưa ra một bảng dữ liệu tổng
 + Sau đó, từ những phân tích từ bước trước, chúng ta đưa ra các lựa chọn như chọn thuộc tính nào trong bảng

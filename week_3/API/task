@@ -67,7 +67,7 @@ Assumptions
 - Input là session đã tồn tại trong feature table, chưa hỗ trợ raw unseen session.
 - API predict live bằng model .pkl, không chỉ lookup prediction đã lưu.
 _____________________________________________________________________________________
-
+    
 LUỒNG HOẠT ĐỘNG CỦA API
 
 - Đầu tiên, ở trong main khi chạy, hệ thống sẽ cần phải tạo các bộ :

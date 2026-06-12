@@ -218,6 +218,23 @@
       background: #fffbeb;
       color: #6b4e16;
     }
+
+    .industry-flow {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 18px;
+      margin-top: 16px;
+    }
+    .industry-flow pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 15px;
+      line-height: 1.62;
+      color: var(--ink);
+    }
     @media (max-width: 900px) {
       header, main { padding-left: 22px; padding-right: 22px; }
       .meta-grid, .two-col, .steps, .kpi-grid { grid-template-columns: 1fr; }
@@ -242,6 +259,72 @@
     </header>
 
     <main>
+      <section id="flow-ds-industry">
+        <h2>Flow DS Trong Thực Tế</h2>
+        <div class="industry-flow">
+          <pre>Một bài toán DS trong thực tế
+
+Flow chính thường là theo mô hình CRISP DM,
+- Bước đầu tiên là : Business Understanding.
+Ứng với mỗi doanh nghiệp, lĩnh vực, hay bài toán khác nhau thì kiến thức cần để chuẩn bị cho bài toán đó cũng khác nhau. Chúng ta cần phải có kiến thức riêng cho từng loại dữ liệu ứng với bài toán đó để đưa ra được những insight đúng với bài toán đó.
+Ở đây chúng ta cũng cần xác định được mục tiêu của bài toán ứng với mục tiêu khai phá dữ liệu, ví dụ với mục tiêu chính là giảm thiểu khách hàng rời bỏ, thì ta phải phân tích được từ dữ liệu những thứ như nhóm rời bỏ là thì tỉ lệ như nào, ... Nếu những điều kiến đó gặp nhau, thì mục tiêu của ta mới thực hiện được.
+-&gt; Do đó thì kiến thực ngành và chuyên môn là điều đầu tiên cần chuẩn bị trước khi bắt tay vào bất kỳ dự án nào.
+
+- Bước thứ 2 là : Data understanding Overview.
+Bây giờ, khi chúng ta đã có được dữ liệu ở trong tay, chúng ta sẽ phải hiểu được:
++ Các thuộc tính trong bảng đại diện cho điều gì
++ Những thuộc tính nào liên quan(Không liên quan) nên được giữ lại phân tích(có thể bị loại bỏ)
++ Dữ liệu đã đủ để phục vụ cho bài toán.
+.........
+Tức chúng ta sẽ cần phải hiểu được trong tay chúng ta có gì.
+Từ đó chúng ta có thể mô tả được dữ liệu :
+- Độ lớn của dữ liệu
+- Giá trị của dữ liệu như các thuộc tính số, dạng lựa chọn, true false,....
+
+Tiếp đến ta cần kiểm tra chất lượng dữ liệu,
+Ở đây ta sẽ cần kiểm tra các nôi dung như:
++ Dữ liệu trống, dữ liệu lỗi, và số lượng dữ liệu bị lỗi
++ Format của dữ liệu, những dữ liệu có &quot;bad metadata&quot;
+
+-&gt; Đưa ra quyết định để làm sạch dữ liệu
+
+Sau đó chúng ta sẽ khám phá dữ liệu:
+Ở đây chúng ta sẽ cần đưa ra một bảng báo cáo những gì có trong dữ liệu:
++ Đặt ra những giả thiết về dữ liệu và kiểm tra chúng.
++ Thuộc tính nào hữu ích, liên quan đến mục tiêu của bài toán.
+....
+
+- Bước 3 là chuẩn bị dữ liệu : Data preparation overview.(Theo em hiểu thì nó giống với feature engineering)
+Ở đây, dựa trên các kết quả đã phân tích từ bước trước, ta sẽ có những bước sau
+
++ Trước tiên, ta sẽ cần phải kết hợp lại dữ liệu nếu cần, ví dụ nếu có nhiều bảng, dữ liệu bị chia, ta cần kết hợp lại, sắp xếp lại chúng nếu cần đề đưa ra một bảng dữ liệu tổng
++ Sau đó, từ những phân tích từ bước trước, chúng ta đưa ra các lựa chọn như chọn thuộc tính nào trong bảng
+Ở đây có thể kết hợp lại các thuộc tính để đưa ra thuộc tính mới nếu cần, ví dụ như mua nhà mà nhà chỉ có độ dài và rộng thì ta có thể kết hợp lại để đưa thuộc tính diện tích của nhà.
++ Format lại dữ liệu, ví dụ như với những thuộc tính dạng lựa chọn, ký tự không đưa được vào mô hình, ta sẽ cần có đưa ra nhũng phương pháp để biến đổi để đưa về đúng dạng có thể cho vào mô hình
++ Cuối cùng, ta cần chia dữ liệu để có kể hoạch train/validation/test cụ thể.
+
+
+- Bước 4 là modeling và evaluation.
+
++ Đầu tiên ta sẽ cần đưa ra model để phục vụ cho bài toán, dựa trên bài toán để đưa ra được mô hình phù hợp như phân loại, dự đoán, hồi quy, ...
++ Đưa ra được kế hoạch để kiểm tra mô hình. Dựa trên các vấn đề của bài toán, ví dụ như tỉ lệ nhãn, ... ta sẽ các metrics để đánh giá kết quả mô hình.
++ Sau đó là build mô hình và chạy mô hình đầu tiên.
++ Và dựa trên các metrics đánh giá mô hình, ta sẽ cần đưa ra quyết định mô hình tốt hay chưa, có cần phải cải thiện không, cần phải finetune lại không? 
++ Cuối cùng là lựa chọn mô hình tốt nhất dựa trên kết quả đánh giá.
+
+- Bước 5: Deployment.
+Sau khi đã có được mô hình rồi, ta sẽ cần phải đẩy mô hình lên một hệ thống, nơi mà ta có thể:
++ Mô hình có thể chạy được và có thể lên được kế hoạch để thực hiện mô hình định kỳ
++ Ta có thể quan sát được kết quả và đánh giá dựa trên thực tế mô hình chạy
+Với các kết quả quan sát thức tế đó, ta có thể lại tiếp tục đưa ra các kết quyết định là mô hình đã đủ tốt, thời gian qua thì mô hình có đạt được kết quả mong đợi như trong kết quả test.
+Từ đó đưa ra được là có cần cải thiện model không, đổi model khác, ...  
+Đây chính là nơi mà ta sẽ quan sát và quản lí vòng đời của các mô hình. 
+__________________________________________________________________________________________________________
+Ngoài ra thì đối với các team có quy mô làm việc lớn, cần phải quản lí mã nguồn một cách chặt chẽ, có sự kết hợp giữa cả DS và DE thì ta có quy trình như TDSP để thêm các nhiệm vụ về quản lí mã nguồn,...
+Hay đối với việc deploy trên thì thường sẽ có thêm hẳn một luồng riêng như MLOps flow để phục vụ việc quan sát và quản lí vòng đời mô hình.</pre>
+        </div>
+      </section>
+
       <section id="problem-statement">
         <h2>1. Problem Statement</h2>
         <p class="lead">
