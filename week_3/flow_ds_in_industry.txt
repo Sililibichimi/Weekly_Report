@@ -22,7 +22,7 @@ Tiếp đến ta cần kiểm tra chất lượng dữ liệu,
 + Dữ liệu trống, dữ liệu lỗi, và số lượng dữ liệu bị lỗi
 + Format của dữ liệu, những dữ liệu có "bad metadata"
 
--> Làm sạch dữ liệu
+-> Đưa ra quyết định để làm sạch dữ liệu
 
 Sau đó chúng ta sẽ khám phá dữ liệu:
 Ở đây chúng ta sẽ cần đưa ra một bảng báo cáo những gì có trong dữ liệu:

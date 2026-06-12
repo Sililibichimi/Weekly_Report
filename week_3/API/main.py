@@ -122,9 +122,11 @@ def predict_session(request: PredictSessionRequest) -> dict:
     response = {
         "request_id": request_id,
         "cache_hit": False,
+        "result_summary": _build_result_summary(request.visitor_id, request.visit_id, prediction),
         "input": {
             "visitor_id": request.visitor_id,
             "visit_id": request.visit_id,
+            "session_id": request.visit_id,
             "dataset": request.dataset,
         },
         "matched_session": {
@@ -171,3 +173,14 @@ def _lookup_or_raise(visitor_id: str, visit_id: int, dataset: str):
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except FeatureStoreError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+def _build_result_summary(visitor_id: str, visit_id: int, prediction: dict) -> dict:
+    return {
+        "visitor_id": visitor_id,
+        "session_id": visit_id,
+        "model_version": model_service.model_version,
+        "time_update": model_service.model_updated_at_utc or "",
+        "xac_suat_mua": prediction.get("purchase_probability_30d"),
+        "doanh_thu": prediction.get("expected_revenue_30d"),
+    }

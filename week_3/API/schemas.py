@@ -2,15 +2,21 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 DatasetName = Literal["auto", "train", "test"]
 
 
 class SessionLookupRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     visitor_id: str = Field(..., description="Google Analytics fullVisitorId")
-    visit_id: int = Field(..., description="Clean numeric visit_id")
+    visit_id: int = Field(
+        ...,
+        validation_alias=AliasChoices("visit_id", "session_id"),
+        description="Clean numeric visit_id/session_id",
+    )
     dataset: DatasetName = Field(default="auto", description="Dataset lookup policy")
 
 
@@ -50,6 +56,7 @@ class LookupResponse(BaseModel):
 class PredictionResponse(BaseModel):
     request_id: str
     cache_hit: bool
+    result_summary: dict[str, Any]
     input: dict[str, Any]
     matched_session: dict[str, Any]
     model: ModelInfo
