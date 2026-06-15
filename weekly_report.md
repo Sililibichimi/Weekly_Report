@@ -21,3 +21,6 @@ Tuần 3:
 - Các thư viện sử dụng : 
     + pyspark : Ở đây chủ yếu được sử dụng để xử lý dữ liệu theo từng cột, chia nhỏ dữ liệu, sau đó lưu lại dưới dạng parquet để phục vụ sử dụng dữ liệu về sau.
     + FastAPI : Sử dụng kết hợp với lại các thư viện như Pydantic, ... để triển khai lên 
+
+Tuần 4 :
+- Tìm hiểu về Optuna để thực hiện thử finetune model
