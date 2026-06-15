@@ -199,15 +199,41 @@ Classification result:
 
 | Dataset | Accuracy | Precision | Recall |
 |---|---:|---:|---:|
-| Validation | 0.813 | 0.051 | 0.834 |
-| Test | 0.785 | 0.056 | 0.813 |
+| Validation | 0.817 | 0.052 | 0.835 |
+| Test | 0.782 | 0.056 | 0.816 |
+
+> Số liệu là kết quả của pipeline sau khi đã finetune cả classifier lẫn regressor (mục 8.1, 8.2).
+
+### 8.1 Finetune classifier (Grid Search + Optuna)
+
+Hyperparameter tuning chạy theo đúng time-based split: mọi cấu hình đều fit trên train split và chấm điểm trên validation (không random CV). Metric chọn model là **PR-AUC** (average precision), phù hợp với target imbalance hơn accuracy; `scale_pos_weight` giữ cố định và dùng early stopping để tự chọn số cây. Tuning chạy thuần Pandas sau khi đã convert từ Spark (Spark `stop()` để giải phóng JVM, tránh OOM); Optuna chạy tuần tự (`n_jobs=1`) để LightGBM tự dùng hết core.
+
+| Phương pháp | PR-AUC (validation) | Ghi chú |
+|---|---:|---|
+| Baseline (base params) | 0.073 | Tham chiếu |
+| Grid Search (16 tổ hợp) | 0.125 | `num_leaves=31, learning_rate=0.1, min_child_samples=20, colsample_bytree=0.7, n_estimators=143` |
+| Optuna (TPE, 30 trials) | **0.130** | Bộ params được chọn (winner) |
+
+Optuna best params: `num_leaves=22, learning_rate=0.134, min_child_samples=64, subsample=0.883, colsample_bytree=0.608, reg_lambda=7.58, n_estimators=225`. Final classifier dùng bộ params này — PR-AUC trên validation tăng ~78% so với baseline reference.
+
+### 8.2 Finetune regressor (Grid Search + Optuna)
+
+Cùng nguyên tắc time-based split, nhưng chỉ fit trên **positive-revenue rows** của train và chấm điểm trên validation positive rows. Metric chọn model là **RMSE log scale** (càng nhỏ càng tốt), đúng target `log1p(future_30d_revenue)`; có early stopping để tự chọn số cây.
+
+| Phương pháp | RMSE log (validation) | Ghi chú |
+|---|---:|---|
+| Baseline (base params) | 1.054 | Tham chiếu |
+| Grid Search (16 tổ hợp) | 1.051 | `num_leaves=15, learning_rate=0.1, min_child_samples=20, colsample_bytree=0.9, n_estimators=91` |
+| Optuna (TPE, 30 trials) | **1.049** | Bộ params được chọn (winner) |
+
+Optuna best params: `num_leaves=33, learning_rate=0.105, min_child_samples=16, subsample=0.806, colsample_bytree=0.837, reg_lambda=0.0015, n_estimators=25`. Optuna thắng nhưng **biên độ rất nhỏ** (RMSE log giảm ~0.4% so với baseline): tín hiệu revenue ở positive rows gần như đã bão hòa với feature set hiện tại, nên muốn cải thiện lớn cần thêm feature thay vì tune sâu hơn.
 
 Expected revenue ranking:
 
 | Dataset | Top 10% revenue capture |
 |---|---:|
-| Validation | 75.04% |
-| Test | 81.89% |
+| Validation | 71.07% |
+| Test | 82.48% |
 
 Kết luận modeling: model phù hợp hơn để ranking/ưu tiên user-session có giá trị cao. Predicted average expected revenue đang cao hơn actual average, nên chưa nên xem expected revenue là dự báo tiền tuyệt đối đã calibration tốt.
 
@@ -284,5 +310,5 @@ Kết quả chính:
 - CSV đã được chuyển sang Parquet với 61 columns.
 - Clean/label output có 91 columns và duplicate sau clean = 0.
 - Feature Set có 27 feature, schema match true, feature null count = 0.
-- Test recall đạt 0.813; top 10% expected revenue capture đạt 81.89%.
+- Test recall đạt 0.816; top 10% expected revenue capture đạt 82.48% (sau khi finetune classifier + regressor).
 - API có thể lookup session, trả feature, model metadata và prediction.

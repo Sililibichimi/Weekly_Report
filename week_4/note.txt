@@ -1,0 +1,17 @@
+Optuna trong fintune hyperparameter.
+- Optuna là một thư viện sử dụng để finetune lại model một cách tự động, nhanh chóng với các cơ chế sau:
+    + Ta có thể tự định nghĩa được mục tiêu (objective) của quá trình fintuning. 
+    + Cơ chế cắt tỉa(pruning) giúp loại bỏ sớm những lần chạy cho kết quả không được hứa hẹn.
+    + Cơ chế lấy mẫu tham số thông minh. 
+    Thay vì lựa chọn những tổ hợp từ bộ tham số như grid-search 
+    thì Optuna sử dụng các phương pháp lấy mẫu thông minh như TPE, Gaussian Process hay CMA-ES để lựa chọn tốt hơn
+    + Có thể tích hợp tự động với các framework như sklearn, pytorch.
+
+Cách lựa chọn sampler:
+- > 1000 trial thì CMA-ES.
+- < 1000 trial và các tham số không tương quan thì TPE.
+- < 1000 trial và các tham số có    tương quan thì Gaussian Process.
+___________________________________________________________________________________________________________________
+
+Nhiệm vụ này được chỉnh sửa thêm ở trong file notebook 06 của w3.
+

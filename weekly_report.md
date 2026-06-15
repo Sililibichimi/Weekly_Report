@@ -15,3 +15,9 @@ Tuần 2:
 - Chuẩn bị kế hoạch chuyển từ python sang pyspark.
 
 Tuần 3:
+- Sử dụng một bộ dữ liệu ở trên kaggle mới để thực hiện bài toán dự đoán mua hàng và doanh thu.
+- Áp dụng parquet để thực hiện xử lý dữ liệu, thực hiện các công việc của một bài toán DS, từ kiểm tra dữ liệu, lọc, làm sạch EDA, feature engineering và modeling.
+- Viết thử API cho mô hình để thực hiện dự đoán.
+- Các thư viện sử dụng : 
+    + pyspark : Ở đây chủ yếu được sử dụng để xử lý dữ liệu theo từng cột, chia nhỏ dữ liệu, sau đó lưu lại dưới dạng parquet để phục vụ sử dụng dữ liệu về sau.
+    + FastAPI : Sử dụng kết hợp với lại các thư viện như Pydantic, ... để triển khai lên 

@@ -581,22 +581,69 @@ Hay đối với việc deploy trên thì thường sẽ có thêm hẳn một l
           <div class="panel accent-amber">
             <h3>Điểm cần đọc đúng</h3>
             <p>
-              Precision thấp là hệ quả của target cực kỳ mất cân bằng và threshold hiện tại ưu tiên recall. Model đang hữu ích hơn ở góc độ ranking/revenue capture: top 10% expected revenue capture được 81.89% actual revenue trên test.
+              Precision thấp là hệ quả của target cực kỳ mất cân bằng và threshold hiện tại ưu tiên recall. Model đang hữu ích hơn ở góc độ ranking/revenue capture: top 10% expected revenue capture được 82.48% actual revenue trên test.
             </p>
             <p class="note">
               Calibration còn lệch: predicted average expected revenue cao hơn actual average trên cả validation và test, nên cần calibration/threshold tuning nếu dùng trực tiếp cho forecast doanh thu tuyệt đối.
             </p>
           </div>
         </div>
-        <table><thead><tr><th>Metric</th><th>Validation</th><th>Test</th></tr></thead><tbody><tr><td>Classification accuracy</td><td>0.813</td><td>0.785</td></tr>
-<tr><td>Classification precision</td><td>0.051</td><td>0.056</td></tr>
-<tr><td>Classification recall</td><td>0.834</td><td>0.813</td></tr>
-<tr><td>Predicted positive rate</td><td>19.49%</td><td>22.52%</td></tr>
-<tr><td>Revenue RMSE log scale</td><td>1.074</td><td>1.115</td></tr>
-<tr><td>Revenue MAE log scale</td><td>0.831</td><td>0.842</td></tr>
-<tr><td>Expected revenue MAE</td><td>17.420</td><td>20.917</td></tr>
-<tr><td>Expected revenue RMSE</td><td>54.572</td><td>231.067</td></tr>
-<tr><td>Revenue capture top 10%</td><td>75.04%</td><td>81.89%</td></tr></tbody></table>
+        <table><thead><tr><th>Metric</th><th>Validation</th><th>Test</th></tr></thead><tbody><tr><td>Classification accuracy</td><td>0.817</td><td>0.782</td></tr>
+<tr><td>Classification precision</td><td>0.052</td><td>0.056</td></tr>
+<tr><td>Classification recall</td><td>0.835</td><td>0.816</td></tr>
+<tr><td>Predicted positive rate</td><td>19.12%</td><td>22.81%</td></tr>
+<tr><td>Revenue RMSE log scale</td><td>1.049</td><td>1.094</td></tr>
+<tr><td>Revenue MAE log scale</td><td>0.816</td><td>0.834</td></tr>
+<tr><td>Expected revenue MAE</td><td>17.088</td><td>21.140</td></tr>
+<tr><td>Expected revenue RMSE</td><td>52.959</td><td>229.425</td></tr>
+<tr><td>Revenue capture top 10%</td><td>71.07%</td><td>82.48%</td></tr></tbody></table>
+        <h3>Finetune classifier — Grid Search &amp; Optuna</h3>
+        <div class="two-col">
+          <div class="panel accent-blue">
+            <h3>Cách tune</h3>
+            <ul>
+              <li>Đúng time-based split: fit trên train, chấm điểm trên validation (không random CV).</li>
+              <li>Metric chọn model: <strong>PR-AUC</strong> (average precision) — hợp imbalance hơn accuracy.</li>
+              <li><code>scale_pos_weight</code> giữ cố định; early stopping tự chọn số cây.</li>
+              <li>Chạy thuần Pandas sau khi <code>spark.stop()</code>; Optuna <code>n_jobs=1</code> để tránh OOM.</li>
+            </ul>
+          </div>
+          <div class="panel accent-amber">
+            <h3>Bộ params được chọn (Optuna)</h3>
+            <p>
+              <code>num_leaves=22</code>, <code>learning_rate=0.134</code>, <code>min_child_samples=64</code>, <code>subsample=0.883</code>, <code>colsample_bytree=0.608</code>, <code>reg_lambda=7.58</code>, <code>n_estimators=225</code>.
+            </p>
+            <p class="note">
+              Optuna thắng grid search và baseline; PR-AUC validation tăng ~78% so với baseline reference.
+            </p>
+          </div>
+        </div>
+        <table><thead><tr><th>Phương pháp</th><th>PR-AUC (validation)</th><th>Ghi chú</th></tr></thead><tbody><tr><td>Baseline (base params)</td><td>0.073</td><td>Tham chiếu</td></tr>
+<tr><td>Grid Search (16 tổ hợp)</td><td>0.125</td><td>num_leaves=31, lr=0.1, min_child_samples=20, colsample=0.7, n_estimators=143</td></tr>
+<tr><td>Optuna (TPE, 30 trials)</td><td><strong>0.130</strong></td><td>Bộ params được chọn (winner)</td></tr></tbody></table>
+        <h3>Finetune regressor — Grid Search &amp; Optuna</h3>
+        <div class="two-col">
+          <div class="panel accent-blue">
+            <h3>Cách tune</h3>
+            <ul>
+              <li>Fit trên <strong>positive-revenue rows</strong> của train, chấm điểm trên validation positive rows.</li>
+              <li>Metric chọn model: <strong>RMSE log scale</strong> (càng nhỏ càng tốt), đúng target <code>log1p(future_30d_revenue)</code>.</li>
+              <li>Early stopping tự chọn số cây; cùng cơ chế chống OOM như classifier.</li>
+            </ul>
+          </div>
+          <div class="panel accent-amber">
+            <h3>Bộ params được chọn (Optuna)</h3>
+            <p>
+              <code>num_leaves=33</code>, <code>learning_rate=0.105</code>, <code>min_child_samples=16</code>, <code>subsample=0.806</code>, <code>colsample_bytree=0.837</code>, <code>reg_lambda=0.0015</code>, <code>n_estimators=25</code>.
+            </p>
+            <p class="note">
+              Optuna thắng nhưng biên độ nhỏ: RMSE log chỉ giảm ~0.4% so với baseline. Tín hiệu revenue ở positive rows đã gần bão hòa với feature hiện tại; cải thiện lớn cần thêm feature thay vì tune sâu hơn.
+            </p>
+          </div>
+        </div>
+        <table><thead><tr><th>Phương pháp</th><th>RMSE log (validation)</th><th>Ghi chú</th></tr></thead><tbody><tr><td>Baseline (base params)</td><td>1.054</td><td>Tham chiếu</td></tr>
+<tr><td>Grid Search (16 tổ hợp)</td><td>1.051</td><td>num_leaves=15, lr=0.1, min_child_samples=20, colsample=0.9, n_estimators=91</td></tr>
+<tr><td>Optuna (TPE, 30 trials)</td><td><strong>1.049</strong></td><td>Bộ params được chọn (winner)</td></tr></tbody></table>
         <h3>Output sau modeling</h3>
         <table><thead><tr><th>Artifact</th><th>Path</th></tr></thead><tbody><tr><td>Purchase classifier</td><td><code>models/lgbm_purchase_classifier_30d.pkl</code></td></tr>
 <tr><td>Revenue regressor</td><td><code>models/lgbm_revenue_regressor_30d.pkl</code></td></tr>
