@@ -1,0 +1,19 @@
+{
+  "active_version": "v20260615T092320",
+  "versions": {
+    "v20260615T092320": {
+      "version": "v20260615T092320",
+      "created_at_utc": "2026-06-15T09:23:20.167197+00:00",
+      "registered_at_utc": "2026-06-16T04:53:44.576471+00:00",
+      "feature_set": "v1_with_derived_flags",
+      "feature_count": 27,
+      "selected_threshold": 0.5,
+      "paths": {
+        "purchase_classifier": "v20260615T092320/lgbm_purchase_classifier_30d.pkl",
+        "revenue_regressor": "v20260615T092320/lgbm_revenue_regressor_30d.pkl",
+        "preprocessing_metadata": "v20260615T092320/lgbm_modeling_preprocessing_30d.json"
+      },
+      "notes": "bootstrapped from legacy flat model files"
+    }
+  }
+}

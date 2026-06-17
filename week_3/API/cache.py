@@ -5,6 +5,9 @@ from threading import RLock
 from time import monotonic
 from typing import Any, Hashable
 
+import json
+
+import redis
 
 @dataclass
 class CacheStats:
@@ -73,7 +76,41 @@ class TTLMemoryCache:
         oldest_key = min(self._items, key=lambda key: self._items[key][0])
         self._items.pop(oldest_key, None)
 
+class RedisCache:
+    """Cache backend dùng Redis - cùng interface với TTLMemoryCache
 
+    Mỗi cache có một `name` làm namespace để làm feature cache và 
+    prediction cache không đụng nhau trong cùng một redis.
+    """
+    def __init__(self, client: "redis.Redis", name: str, ttl_seconds: int) -> None:
+            self.client = client
+            self.name = name
+            self.ttl_seconds = ttl_seconds 
+    
+    def _full_key(self, key: Hashable) -> str:
+        # Tuple key -> chuỗi ổn định. default = str để int/bool cũng serialize được
+        return f"{self.name}:" + json.dumps(key, default=str)
+    
+    def get(self, key: Hashable) -> Any | None :
+        raw = self.client.get(self._full_key(key))
+        if raw is None:
+            return None
+        return json.load(raw)
+    
+    def set(self, key: Hashable, value: Any) -> None:
+        self.client.setex(self._full_key(key), self.ttl_seconds, json.dumps(value, default=str))
+
+    def clear(self) -> None:
+        # Chỉ xóa key thuộc namespace này (không đụng cache khác). SCAN thay vì keys để không block Redis
+        keys = list(self.client.scan_iter(match=f"{self.name}", count=500))
+        if keys:
+            self.client.delete(*keys)
+
+    def stats(self) -> CacheStats:
+        size = sum(1 for _ in self.client.scan_iter(match=f"{self.name}", count = 500))
+        #  maxsize = -1: Redis không evict thủ công như bản memory; dựa vào TTL.
+        return CacheStats(name=self.name, size=size, maxsize=-1, ttl_seconds=self.ttl_seconds)
+    
 class CacheManager:
     def __init__(
         self,
@@ -81,17 +118,27 @@ class CacheManager:
         feature_ttl_seconds: int,
         prediction_maxsize: int,
         prediction_ttl_seconds: int,
+        backend: str = "memory",
+        redis_url: str | None = None,
     ) -> None:
-        self.feature_cache = TTLMemoryCache(
-            name="feature_lookup",
-            maxsize=feature_maxsize,
-            ttl_seconds=feature_ttl_seconds,
-        )
-        self.prediction_cache = TTLMemoryCache(
-            name="prediction",
-            maxsize=prediction_maxsize,
-            ttl_seconds=prediction_ttl_seconds,
-        )
+        
+        self.backend = backend
+        if backend == "redis" :
+            client = redis.from_url(redis_url, decode_responses=True)
+            client.ping() # fail fast nếu redis không kết nối được thì báo lỗi ngay lúc khởi động
+            self.feature_cache = RedisCache(client, "feature_lookup", feature_ttl_seconds)
+            self.prediction_cache = RedisCache(client, "prediction", prediction_ttl_seconds)
+        else:
+            self.feature_cache = TTLMemoryCache(
+                name="feature_lookup",
+                maxsize=feature_maxsize,
+                ttl_seconds=feature_ttl_seconds,
+            )
+            self.prediction_cache = TTLMemoryCache(
+                name="prediction",
+                maxsize=prediction_maxsize,
+                ttl_seconds=prediction_ttl_seconds,
+            )
 
     def status(self) -> dict[str, dict[str, int | str]]:
         return {
@@ -99,7 +146,7 @@ class CacheManager:
             "prediction_cache": self.prediction_cache.stats().__dict__,
         }
 
-    def clear(self) -> None:
+    def  clear(self) -> None:
         self.feature_cache.clear()
         self.prediction_cache.clear()
 

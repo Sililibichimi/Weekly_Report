@@ -24,3 +24,4 @@ Tuần 3:
 
 Tuần 4 :
 - Tìm hiểu về Optuna để thực hiện thử finetune model
+- Tìm thêm các cách để cải thiện model

@@ -38,6 +38,8 @@ class ModelService:
         self.regressor: Any | None = None
         self.metadata: dict[str, Any] = {}
         self.metrics: dict[str, Any] = {}
+        # Registry version id this service was loaded from (set by the caller).
+        self.registry_version: str | None = None
 
     def load(self) -> None:
         self._validate_artifacts_exist()
@@ -107,6 +109,7 @@ class ModelService:
         return {
             "model_name": "lgbm_future_30d_purchase_revenue",
             "model_version": self.model_version,
+            "registry_version": self.registry_version,
             "model_updated_at_utc": self.model_updated_at_utc,
             "feature_set": self.metadata.get("feature_set", "unknown"),
             "feature_count": len(self.feature_columns),

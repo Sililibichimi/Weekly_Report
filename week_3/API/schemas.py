@@ -33,12 +33,33 @@ class SessionKey(BaseModel):
 class ModelInfo(BaseModel):
     model_name: str
     model_version: str
+    registry_version: str | None = None
     model_updated_at_utc: str | None
     feature_set: str
     feature_count: int
     selected_threshold: float
     model_paths: dict[str, str]
     metrics: dict[str, Any]
+
+
+class ActivateModelRequest(BaseModel):
+    version: str = Field(..., description="Registry version id to activate")
+
+
+class ModelVersionSummary(BaseModel):
+    version: str
+    status: str
+    created_at_utc: str | None = None
+    registered_at_utc: str | None = None
+    feature_set: str | None = None
+    feature_count: int | None = None
+    selected_threshold: float | None = None
+    notes: str | None = None
+
+
+class ModelVersionsResponse(BaseModel):
+    active_version: str
+    versions: list[ModelVersionSummary]
 
 
 class LookupResponse(BaseModel):

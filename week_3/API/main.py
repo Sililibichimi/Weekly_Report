@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from threading import RLock
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
@@ -10,6 +11,8 @@ from .config import (
     FEATURE_CACHE_TTL_SECONDS,
     PREDICTION_CACHE_MAXSIZE,
     PREDICTION_CACHE_TTL_SECONDS,
+    REDIS_URL,
+    CACHE_BACKEND
 )
 from .feature_store import (
     DuplicateSessionError,
@@ -18,9 +21,12 @@ from .feature_store import (
     SessionNotFoundError,
 )
 from .model_service import ModelService, ModelServiceError
+from .registry import ModelRegistry, ModelRegistryError, VersionNotFoundError
 from .schemas import (
+    ActivateModelRequest,
     LookupResponse,
     ModelInfo,
+    ModelVersionsResponse,
     PredictSessionRequest,
     PredictionResponse,
     SessionKey,
@@ -39,19 +45,49 @@ cache_manager = CacheManager(
     feature_ttl_seconds=FEATURE_CACHE_TTL_SECONDS,
     prediction_maxsize=PREDICTION_CACHE_MAXSIZE,
     prediction_ttl_seconds=PREDICTION_CACHE_TTL_SECONDS,
+    backend=CACHE_BACKEND,
+    redis_url=REDIS_URL,
 )
+registry = ModelRegistry()
 model_service = ModelService()
 feature_store: FeatureStore | None = None
+# Serializes model hot-swaps so requests never see a half-swapped state.
+_swap_lock = RLock()
 
 
 @app.on_event("startup")
 def startup() -> None:
-    global feature_store
-    model_service.load()
-    feature_store = FeatureStore(
-        cache_manager=cache_manager,
-        feature_columns=model_service.feature_columns,
+    # First run: create registry.json from the legacy flat model files.
+    registry.bootstrap_if_needed()
+    _load_version(registry.get_active_version())
+
+
+def _load_version(version: str) -> None:
+    """Load a registry version into a fresh service+store, then swap it in.
+
+    Building the new objects fully *before* swapping means in-flight requests
+    keep using the old model until the new one is ready (atomic reference swap).
+    """
+    global model_service, feature_store
+
+    paths = registry.get_version_paths(version)
+    new_service = ModelService(
+        classifier_path=paths["classifier"],
+        regressor_path=paths["regressor"],
+        metadata_path=paths["metadata"],
     )
+    new_service.load()
+    new_service.registry_version = version
+    new_store = FeatureStore(
+        cache_manager=cache_manager,
+        feature_columns=new_service.feature_columns,
+    )
+
+    with _swap_lock:
+        model_service = new_service
+        feature_store = new_store
+        # Predictions from the previous model are no longer valid for reuse.
+        cache_manager.prediction_cache.clear()
 
 
 @app.get("/health")
@@ -60,6 +96,7 @@ def health() -> dict:
         "status": "ok" if model_service.is_loaded and feature_store is not None else "not_ready",
         "model_loaded": model_service.is_loaded,
         "metadata_loaded": bool(model_service.metadata),
+        "active_model_version": model_service.registry_version,
         "feature_store_ready": feature_store is not None,
         "cache": cache_manager.status(),
     }
@@ -68,6 +105,42 @@ def health() -> dict:
 @app.get("/model/info", response_model=ModelInfo)
 def model_info() -> dict:
     _ensure_ready()
+    return model_service.info()
+
+
+@app.get("/model/versions", response_model=ModelVersionsResponse)
+def model_versions() -> dict:
+    try:
+        return {
+            "active_version": registry.get_active_version(),
+            "versions": registry.list_versions(),
+        }
+    except ModelRegistryError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post("/model/activate", response_model=ModelInfo)
+def activate_model(request: ActivateModelRequest) -> dict:
+    # Validate the version exists before touching anything.
+    try:
+        registry.get_version_paths(request.version)
+    except VersionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    try:
+        _load_version(request.version)
+        registry.set_active(request.version)  # persist only after a successful load
+    except (ModelServiceError, ModelRegistryError, OSError) as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to activate {request.version}: {exc}") from exc
+    return model_service.info()
+
+
+@app.post("/model/reload", response_model=ModelInfo)
+def reload_model() -> dict:
+    try:
+        _load_version(registry.get_active_version())
+    except (ModelServiceError, ModelRegistryError, OSError) as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return model_service.info()
 
 

@@ -11,6 +11,80 @@ Cách lựa chọn sampler:
 - > 1000 trial thì CMA-ES.
 - < 1000 trial và các tham số không tương quan thì TPE.
 - < 1000 trial và các tham số có    tương quan thì Gaussian Process.
-___________________________________________________________________________________________________________________
 
-Nhiệm vụ này được chỉnh sửa thêm ở trong file notebook 06 của w3.
+Phần này được chỉnh sửa thêm ở trong file notebook 06 của w3.
+___________________________________________________________________________________________________________________
+API:
+Sừ dụng một FastAPI service để serve 2 model LightGBM dự đoán hành vi của user trong 30 tới sau một session
+1: Phân loại : Xác suất khách hàng sẽ mua hàng trong 30 ngày tới.
+2: Hồi quy   : Doanh thu kỳ vọng nếu mua.
+Tuy nhiên thì API không nhận trực tiếp feature từ client. Client chỉ gửi `visitor_id` + `session_id`,
+Api tự tra cứu feature từ bảng parquet đã được tính sẵn -> rồi mới chạy model.
+
+Kiến trúc và luồng chạy:
+
+Client (visitor_id + visit_id)
+   │
+   ▼
+main.py (FastAPI routes)
+   │
+   ├──> FeatureStore  ──> đọc parquet (data_pyspark_parquet/...) ──> features
+   │         │
+   │         └──> CacheManager (feature_cache)
+   │
+   └──> ModelService ──> 2 model .pkl + metadata JSON ──> prediction
+             │
+             └──> CacheManager (prediction_cache)
+
+
+1. config.py
+Ở đây ta sẽ định nghĩa :
+- Đường dẫn của dữ liệu và đường dẫn của mô hình.
+- Tham số cache.
+
+2. schemas.py
+Sử dụng Pydantic để định nghĩa các request/response để FastAPI tự validate và sinh Swagger docs.
+
+3. cache.py
+Ở đây dùng để cache lại dữ liệu những dự đoán đã được thực hiện trước đó.
+- TTLMemoryCache: Cache thread-safe với cơ chế hết hạn theo thời gian
+- CacheManager: Gom 2 cache - feature và prediction và cung cấp status(), clear()
+
+Ở đây thì ta chỉ cache in-memory per-process.
+
+4. feature_store.py
+Ở đây được dùng để tra cứu, tìm kiếm lại feature dựa trên thông tin đầu vào.
+Ta sẽ kiểm tra cahce trước với thông tin (dataset, visitor_id. visit_id), nếu miss thì đọc parquet.
+
+5. model_service.py
+Load model và dự đoán kết quả.
+ta sẽ kiểm tra xem đã tồn tại model + metadata chưa. Sau đó gọi một 1 lần lúc startup
+
+6. main.py 
+FastAPI app và endpoints
+Ở đây khởi tạo các hệ thống như cache_manager, model_service, feature_store và để None cho đến khi startup
+
+Các endpoint:
+- GET /health : trạng thái của model/feature store/cache.
+- GET /model/info : Version, threshold, featur set. metrics.
+- POST /session/lookup : Tra session -> trả về info, features, ground truth
+- POST /predict/session : tra session + chạy model -> probability/revenue
+- GET /cache/status : Số item trong 2 cache.
+- POST /cache/clear : Xóa cache
+
+TEST API:
+Quan trọng nhất để kiểm tra xem một API có hoạt động không
+Có 2 nhóm chính là :
+- Nhóm 1: Functional testing: Kiểm tra đúng/sai của hệ thống
+   + Unit test - test từng hàm/lớp riêng lẻ
+   + intergation test - test nhiều phần ghép lại 
+   + API/endpoint test - gọi qua HTTP layer
+   + Contract test/schema validation
+   + Smoke/sanity test : Dùng request cơ bản sau khi deploy để chắc chắn API còn sống.
+- Nhóm 2: Performance/Load testing
+Ở đây bắn nhiều reuqest đồng thời với nhiều mục địch :
+   + Load test: Tải dự kiến xem API có ổn không, latency bao nhiêu
+   + Stress test : API gãy ở mức nào, giới hạn tối đa
+   + Spike test : Tải tăng đột ngột(flash sale) thì sao?
+   + Soak/Endurance test : Chạy lâu(vài giờ) thì có rò rỉ bộ nhớ không, cahce phình không.
+   + Scalability test : Thêm worker/CPU thì throughout tăng tuyến tính ?
