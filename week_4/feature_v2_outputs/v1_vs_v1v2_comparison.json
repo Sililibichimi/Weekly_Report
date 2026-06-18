@@ -1,0 +1,97 @@
+{
+  "classifier": {
+    "V1": {
+      "feature_count": 27,
+      "pr_auc": 0.12640066802191277,
+      "best_threshold_f1": 0.9,
+      "f1": 0.19952913478516773,
+      "precision": 0.14829396325459318,
+      "recall": 0.30485611510791366,
+      "confusion_matrix": [
+        [
+          90939,
+          1947
+        ],
+        [
+          773,
+          339
+        ]
+      ]
+    },
+    "V1+V2": {
+      "feature_count": 41,
+      "pr_auc": 0.12487470172201656,
+      "best_threshold_f1": 0.9,
+      "f1": 0.1917272219116825,
+      "precision": 0.13909164639091645,
+      "recall": 0.30845323741007197,
+      "confusion_matrix": [
+        [
+          90763,
+          2123
+        ],
+        [
+          769,
+          343
+        ]
+      ]
+    },
+    "delta_pr_auc": -0.0015259662998962087,
+    "delta_f1": -0.007801912873485223
+  },
+  "regressor": {
+    "V1": {
+      "feature_count": 27,
+      "rmse_log": 1.075000857721242,
+      "mae_log": 0.8344299459940022,
+      "rmse_revenue": 388.77971322873674,
+      "mae_revenue": 138.30067644023555
+    },
+    "V1+V2": {
+      "feature_count": 41,
+      "rmse_log": 1.0536359500869168,
+      "mae_log": 0.8210738945289539,
+      "rmse_revenue": 386.5394271698221,
+      "mae_revenue": 138.16573552061175
+    }
+  },
+  "v2_features": [
+    "traffic_source_clean_model",
+    "traffic_medium_clean_model",
+    "browser_family_model",
+    "os_family_model",
+    "is_direct_traffic",
+    "is_paid_traffic",
+    "is_organic_traffic",
+    "is_referral_traffic",
+    "has_traffic_keyword",
+    "has_traffic_ad_content",
+    "has_geo_region",
+    "has_geo_metro",
+    "has_custom_dimension",
+    "is_socially_engaged"
+  ],
+  "v2_useful_perm_gt_0": [
+    "traffic_source_clean_model",
+    "browser_family_model",
+    "os_family_model",
+    "is_direct_traffic",
+    "is_referral_traffic",
+    "traffic_medium_clean_model",
+    "has_geo_region",
+    "has_geo_metro",
+    "has_traffic_ad_content",
+    "has_custom_dimension",
+    "has_traffic_keyword",
+    "is_paid_traffic"
+  ],
+  "v2_weak_perm_le_0": [
+    "is_socially_engaged",
+    "is_organic_traffic"
+  ],
+  "rare_min_count": 200,
+  "high_card_categorical": [
+    "traffic_source_clean_model",
+    "traffic_medium_clean_model"
+  ]
+}

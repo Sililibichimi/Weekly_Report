@@ -1,0 +1,12 @@
+{
+  "classifier_pr_auc": {
+    "week3_scale_pos_weight_baseline": 0.12487470172201656,
+    "nb09_best_no_handling": 0.13846699521453928,
+    "filtered_baseline": 0.14180825503097566,
+    "finetuned": 0.1425
+  },
+  "regressor_rmse_log": {
+    "filtered_baseline": 1.0545,
+    "finetuned": 1.037
+  }
+}

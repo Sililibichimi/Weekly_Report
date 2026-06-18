@@ -88,3 +88,5 @@ Có 2 nhóm chính là :
    + Spike test : Tải tăng đột ngột(flash sale) thì sao?
    + Soak/Endurance test : Chạy lâu(vài giờ) thì có rò rỉ bộ nhớ không, cahce phình không.
    + Scalability test : Thêm worker/CPU thì throughout tăng tuyến tính ?
+   ___________________________________________________________________________________________________________________
+    

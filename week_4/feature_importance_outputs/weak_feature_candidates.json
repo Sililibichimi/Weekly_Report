@@ -1,0 +1,12 @@
+{
+  "validation_rows": 93998,
+  "feature_count": 27,
+  "weak_for_classifier_perm_le_0": [
+    "session_month",
+    "is_first_session",
+    "is_bounce",
+    "has_gclid",
+    "has_traffic_campaign",
+    "has_previous_purchase"
+  ]
+}
