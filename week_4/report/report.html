@@ -101,6 +101,19 @@
           <div class="step"><small>NB10</small><h3>Finetune &amp; Test</h3><p>Optuna trên feature lọc + phân phối
             thật, chốt model, đánh giá test.</p></div>
         </div>
+
+        <h3>Tỉ lệ nhãn giữa train và validation</h3>
+        <p class="lead">Split theo thời gian (train &lt; <code>2018-03-01</code>, validation = tháng 03/2018).
+          Phân phối label rất lệch nhưng <strong>đồng nhất giữa hai tập</strong> → validation phản ánh đúng độ khó thực tế.</p>
+        <table>
+          <thead><tr><th>Tập</th><th class="num">Số dòng</th><th class="num">Positive (có mua)</th><th class="num">Negative</th><th class="num">Tỉ lệ positive</th><th class="num">Mức lệch</th></tr></thead>
+          <tbody>
+            <tr><td>Train split</td><td class="num">1,530,080</td><td class="num">20,157</td><td class="num">1,509,923</td><td class="num">1.32%</td><td class="num">~1:75</td></tr>
+            <tr><td>Validation</td><td class="num">93,998</td><td class="num">1,112</td><td class="num">92,886</td><td class="num">1.18%</td><td class="num">~1:84</td></tr>
+          </tbody>
+        </table>
+        <div class="note">Tỉ lệ positive hai tập tương đồng (1.32% vs 1.18%) → split theo thời gian không gây lệch
+          phân phối nhãn. Đây là lý do mọi đánh giá ưu tiên <strong>PR-AUC</strong> thay vì accuracy.</div>
       </section>
 
       <section id="kpi">
@@ -267,20 +280,6 @@
             <tr><td>Revenue capture top 10%</td><td class="num">77.8%</td><td class="num win">84.8%</td></tr>
           </tbody>
         </table>
-      </section>
-
-      <section id="hygiene">
-        <h2>Vệ sinh dữ liệu</h2>
-        <table>
-          <thead><tr><th>Bước</th><th>Fit từ đâu</th><th>Test dùng để</th></tr></thead>
-          <tbody>
-            <tr><td>Rare-mapping &amp; category levels (NB08)</td><td>train</td><td>chỉ transform</td></tr>
-            <tr><td>Optuna scoring / filtering check (NB10)</td><td>train split (fit), validation (score)</td><td>không dùng</td></tr>
-            <tr><td>Chọn threshold (NB10)</td><td>validation</td><td>không dùng</td></tr>
-            <tr><td>Final test (NB10 mục 9)</td><td>—</td><td>predict 1 lần, không refit</td></tr>
-          </tbody>
-        </table>
-        <p class="lead" style="margin-top:14px">→ Không có rò rỉ test vào quá trình fit/tune/chọn threshold.</p>
       </section>
 
       <section id="conclusion">

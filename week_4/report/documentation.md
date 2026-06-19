@@ -13,7 +13,17 @@ qua 4 bước: feature importance → thêm feature mới → xử lý mất câ
 | Nguyên tắc | Fit/tune/chọn threshold **chỉ trên train + validation**; test chỉ chạy 1 lần khi đã chốt model |
 | Metric chính | **PR-AUC** (average precision) cho classifier — phù hợp dữ liệu lệch hơn accuracy; **RMSE-log** cho regressor |
 
-Phân phối label rất lệch: positive (có mua trong 30 ngày) chỉ ~1.3% trên train, ~1.2% trên validation.
+### Tỉ lệ nhãn giữa train và validation
+
+Split theo thời gian (train < `2018-03-01`, validation = tháng 03/2018). Phân phối label **rất lệch**:
+
+| Tập | Số dòng | Positive (có mua) | Negative | Tỉ lệ positive | Mức lệch |
+|---|---:|---:|---:|---:|---:|
+| Train split | 1,530,080 | 20,157 | 1,509,923 | **1.32%** | ~1:75 |
+| Validation | 93,998 | 1,112 | 92,886 | **1.18%** | ~1:84 |
+
+Hai tập có tỉ lệ positive tương đồng (1.32% vs 1.18%) → split theo thời gian **không gây lệch phân phối nhãn**,
+validation phản ánh đúng độ khó thực tế. Đây là lý do mọi đánh giá ưu tiên **PR-AUC** thay vì accuracy.
 
 ## 2. Notebook 07 - Feature Importance
 
