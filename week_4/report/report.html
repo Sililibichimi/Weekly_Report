@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Week 4 - Cải thiện model Future 30D Purchase / Revenue</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d8dee8;
+      --soft: #f5f7fb;
+      --blue: #2563eb;
+      --green: #059669;
+      --amber: #d97706;
+      --red: #dc2626;
+      --panel: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: #eef2f7;
+      line-height: 1.55;
+    }
+    .page { max-width: 1180px; margin: 0 auto; background: var(--panel); min-height: 100vh; }
+    header { padding: 44px 56px 32px; border-bottom: 1px solid var(--line); background: #ffffff; }
+    .eyebrow { margin: 0 0 10px; color: var(--blue); font-size: 13px; font-weight: 700; text-transform: uppercase; }
+    h1 { margin: 0; font-size: 34px; line-height: 1.18; }
+    .subtitle { margin: 16px 0 0; max-width: 920px; color: var(--muted); font-size: 16px; }
+    .meta-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+    .meta-item { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: var(--soft); }
+    .meta-item strong { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    main { padding: 8px 56px 56px; }
+    section { padding: 34px 0; border-bottom: 1px solid var(--line); }
+    section:last-child { border-bottom: 0; }
+    h2 { margin: 0 0 14px; font-size: 24px; line-height: 1.25; }
+    h3 { margin: 18px 0 8px; font-size: 17px; line-height: 1.3; }
+    p { margin: 0 0 14px; }
+    .lead { color: var(--muted); max-width: 980px; }
+    .steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+    .step { border: 1px solid var(--line); border-radius: 8px; padding: 16px; background: #ffffff; }
+    .step small { display: inline-block; color: #fff; background: var(--blue); border-radius: 999px; padding: 2px 8px; font-weight: 700; margin-bottom: 10px; }
+    ul { margin: 10px 0 0 20px; padding: 0; }
+    li { margin: 5px 0; }
+    code { font-family: Consolas, Monaco, monospace; background: #eef2ff; padding: 1px 4px; border-radius: 4px; color: #1d4ed8; font-size: 0.94em; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 14px; }
+    th, td { border: 1px solid var(--line); padding: 10px 11px; vertical-align: top; text-align: left; }
+    th { background: #f1f5f9; font-weight: 700; }
+    td.num, th.num { text-align: right; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+    .kpi { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: var(--soft); }
+    .kpi strong { display: block; font-size: 22px; line-height: 1.2; margin-bottom: 4px; }
+    .kpi span { color: var(--muted); font-size: 13px; }
+    .chart-grid { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 20px; }
+    .chart-card { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #fff; }
+    .chart-copy { padding: 16px 18px 4px; }
+    .chart-copy p { color: var(--muted); margin-bottom: 10px; }
+    .chart-card img { display: block; width: 100%; height: auto; border-top: 1px solid var(--line); background: #fff; }
+    .feature-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .feature-badges span { border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; background: #f8fafc; font-size: 13px; }
+    .note { margin-top: 14px; padding: 12px 14px; border-left: 4px solid var(--amber); background: #fffbeb; color: #6b4e16; }
+    .win { color: var(--green); font-weight: 700; }
+    @media (max-width: 900px) {
+      header, main { padding-left: 22px; padding-right: 22px; }
+      .meta-grid, .steps, .kpi-grid { grid-template-columns: 1fr; }
+      h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <p class="eyebrow">Week 4 · Feature Importance · Imbalance · Finetuning</p>
+      <h1>Cải thiện model dự đoán mua hàng &amp; doanh thu 30 ngày</h1>
+      <p class="subtitle">
+        Tiếp nối pipeline week_3, week_4 cải thiện model qua 4 bước: hiểu feature quan trọng, thử thêm feature mới,
+        thử các cách xử lý mất cân bằng, và finetune model mới rồi đánh giá trên test.
+      </p>
+      <div class="meta-grid">
+        <div class="meta-item"><strong>Model</strong>LightGBM 2 tầng (classifier + regressor)</div>
+        <div class="meta-item"><strong>Metric chính</strong>PR-AUC (classifier), RMSE-log (regressor)</div>
+        <div class="meta-item"><strong>Positive rate</strong>~1.3% (rất lệch)</div>
+        <div class="meta-item"><strong>Nguyên tắc</strong>Fit/tune chỉ trên train + validation</div>
+      </div>
+    </header>
+
+    <main>
+      <section id="overview">
+        <h2>Tổng quan 4 bước</h2>
+        <p class="lead">Mỗi bước có một notebook riêng trong <code>week_4/</code>, đều self-contained và tuân thủ
+          quy tắc không leakage.</p>
+        <div class="steps">
+          <div class="step"><small>NB07</small><h3>Feature Importance</h3><p>Built-in (gain/split) + permutation
+            importance để có mốc tham chiếu.</p></div>
+          <div class="step"><small>NB08</small><h3>Feature V2</h3><p>Thêm 14 feature categorical chi tiết + sparse
+            flags, so PR-AUC.</p></div>
+          <div class="step"><small>NB09</small><h3>Imbalance</h3><p>So 6 chiến lược under/over/SMOTENC vs
+            <code>scale_pos_weight</code>.</p></div>
+          <div class="step"><small>NB10</small><h3>Finetune &amp; Test</h3><p>Optuna trên feature lọc + phân phối
+            thật, chốt model, đánh giá test.</p></div>
+        </div>
+      </section>
+
+      <section id="kpi">
+        <h2>Kết quả cuối cùng (test)</h2>
+        <div class="kpi-grid">
+          <div class="kpi"><strong>0.157</strong><span>PR-AUC trên test (val 0.143)</span></div>
+          <div class="kpi"><strong>84.8%</strong><span>Top 10% expected-revenue capture</span></div>
+          <div class="kpi"><strong>0.286</strong><span>Recall @ threshold 0.127</span></div>
+          <div class="kpi"><strong>33</strong><span>Feature (V1+V2 đã lọc từ 41)</span></div>
+        </div>
+        <p class="lead" style="margin-top:18px">Model mới generalize tốt: PR-AUC trên test (0.157) còn cao hơn
+          validation (0.143). Giống week_3, thế mạnh là <strong>ranking</strong> các user-session giá trị cao.</p>
+      </section>
+
+      <section id="nb07">
+        <h2>NB07 · Feature Importance</h2>
+        <p class="lead">Tạo mốc tham chiếu trước khi can thiệp. Ưu tiên permutation importance vì built-in
+          <code>gain</code> thiên vị feature high-cardinality.</p>
+        <h3>Bộ feature V1 baseline (27 feature, kế thừa week_3)</h3>
+        <table>
+          <thead><tr><th>Nhóm</th><th>Feature</th></tr></thead>
+          <tbody>
+            <tr><td>Current-session numeric/time (9)</td><td><code>visit_number</code>, <code>totals_hits</code>, <code>totals_pageviews</code>, <code>totals_time_on_site</code>, <code>totals_new_visits</code>, <code>is_bounce</code>, <code>session_hour</code>, <code>session_day_of_week</code>, <code>session_month</code></td></tr>
+            <tr><td>Categorical (4)</td><td><code>channelGrouping_model</code>, <code>traffic_channel_type_model</code>, <code>device_category_model</code>, <code>geo_country_model</code></td></tr>
+            <tr><td>Sparse flags (3)</td><td><code>has_gclid</code>, <code>has_traffic_campaign</code>, <code>has_referral_path</code></td></tr>
+            <tr><td>User-history (9)</td><td><code>user_previous_sessions</code>, <code>user_days_since_first_session</code>, <code>user_days_since_previous_session</code>, <code>user_previous_avg_pageviews</code>, <code>user_previous_avg_time_on_site</code>, <code>user_previous_bounce_rate</code>, <code>user_previous_purchase_count</code>, <code>user_previous_total_revenue</code>, <code>user_days_since_previous_purchase</code></td></tr>
+            <tr><td>Derived flags (2)</td><td><code>is_first_session</code>, <code>has_previous_purchase</code></td></tr>
+          </tbody>
+        </table>
+        <h3>Lõi của model</h3>
+        <div class="feature-badges">
+          <span>visit_number</span><span>totals_hits</span><span>totals_pageviews</span>
+          <span>totals_time_on_site</span><span>user_previous_total_revenue</span>
+          <span>user_previous_purchase_count</span><span>user_days_since_previous_session</span>
+        </div>
+        <h3>Feature yếu (permutation ≤ 0) — ứng viên loại bỏ</h3>
+        <div class="feature-badges">
+          <span>session_month</span><span>is_first_session</span><span>is_bounce</span>
+          <span>has_gclid</span><span>has_traffic_campaign</span><span>has_previous_purchase</span>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-copy"><h3>Permutation importance — classifier (top 20)</h3>
+              <p>Đo mức giảm metric khi xáo trộn từng feature trên validation.</p></div>
+            <img src="../feature_importance_outputs/cls_perm_top20.png" alt="Permutation importance classifier">
+          </div>
+        </div>
+      </section>
+
+      <section id="nb08">
+        <h2>NB08 · Thêm Feature V2</h2>
+        <p class="lead">Thêm 14 feature (4 categorical chi tiết + 10 sparse flag), nâng tổng lên 41 feature.
+          Rare-category bucketing (<code>count &lt; 200</code> → <code>__other__</code>) fit train-only.</p>
+        <h3>14 feature V2 được thêm</h3>
+        <table>
+          <thead><tr><th>Nhóm</th><th>Feature</th></tr></thead>
+          <tbody>
+            <tr><td>Categorical (4)</td><td><code>traffic_source_clean_model</code>, <code>traffic_medium_clean_model</code>, <code>browser_family_model</code>, <code>os_family_model</code></td></tr>
+            <tr><td>Sparse flags (10)</td><td><code>is_direct_traffic</code>, <code>is_paid_traffic</code>, <code>is_organic_traffic</code>, <code>is_referral_traffic</code>, <code>has_traffic_keyword</code>, <code>has_traffic_ad_content</code>, <code>has_geo_region</code>, <code>has_geo_metro</code>, <code>has_custom_dimension</code>, <code>is_socially_engaged</code></td></tr>
+          </tbody>
+        </table>
+        <h3>So sánh classifier (cùng threshold 0.5)</h3>
+        <table>
+          <thead><tr><th>Bộ feature</th><th class="num">PR-AUC</th><th class="num">recall@0.5</th><th class="num">precision@0.5</th></tr></thead>
+          <tbody>
+            <tr><td>V1 (27 feature)</td><td class="num">0.1264</td><td class="num">0.828</td><td class="num">0.051</td></tr>
+            <tr><td>V1 + V2 (41 feature)</td><td class="num">0.1249</td><td class="num">0.854</td><td class="num">0.052</td></tr>
+          </tbody>
+        </table>
+        <div class="note">V2 <strong>không cải thiện classifier</strong> (PR-AUC gần như bằng nhau), chỉ giúp
+          regressor một chút. Bài học: so sánh feature phải dùng PR-AUC (không phụ thuộc threshold) — recall đơn
+          lẻ chỉ phản ánh threshold đang chọn.</div>
+      </section>
+
+      <section id="nb09">
+        <h2>NB09 · Xử lý mất cân bằng</h2>
+        <p class="lead">So 6 chiến lược trên cùng validation set, chỉ resample train split, bỏ
+          <code>scale_pos_weight</code> khi đã resample.</p>
+        <table>
+          <thead><tr><th>Chiến lược</th><th class="num">PR-AUC</th><th class="num">recall@0.5</th><th class="num">precision@0.5</th><th class="num">train rows</th></tr></thead>
+          <tbody>
+            <tr><td><strong>no_handling</strong> (phân phối thật)</td><td class="num win">0.1385</td><td class="num">0.007</td><td class="num">0.471</td><td class="num">1.53M</td></tr>
+            <tr><td>over 1:1</td><td class="num">0.1300</td><td class="num">0.852</td><td class="num">0.052</td><td class="num">3.02M</td></tr>
+            <tr><td>under 1:5</td><td class="num">0.1292</td><td class="num">0.579</td><td class="num">0.102</td><td class="num">0.12M</td></tr>
+            <tr><td>baseline scale_pos_weight</td><td class="num">0.1249</td><td class="num">0.854</td><td class="num">0.052</td><td class="num">1.53M</td></tr>
+            <tr><td>SMOTENC (ratio 0.3)</td><td class="num">0.1246</td><td class="num">0.009</td><td class="num">0.370</td><td class="num">1.96M</td></tr>
+            <tr><td>under 1:1</td><td class="num">0.1179</td><td class="num">0.881</td><td class="num">0.049</td><td class="num">0.04M</td></tr>
+          </tbody>
+        </table>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-copy"><h3>So sánh PR-AUC theo chiến lược</h3>
+              <p>Đường đứt đỏ = baseline <code>scale_pos_weight</code>.</p></div>
+            <img src="../imbalance_outputs/imbalance_pr_auc_comparison.png" alt="So sánh PR-AUC các chiến lược imbalance">
+          </div>
+        </div>
+        <div class="note"><code>scale_pos_weight</code>/oversampling chỉ <strong>dịch ngưỡng hiệu dụng</strong> chứ
+          không giúp model tách lớp tốt hơn. Với LightGBM trên dữ liệu lệch, <strong>chọn threshold</strong> mới là
+          chìa khóa, không phải resampling.</div>
+      </section>
+
+      <section id="nb10">
+        <h2>NB10 · Finetune &amp; Chốt model</h2>
+        <p class="lead">Bộ feature <strong>V1+V2 lọc bớt = 33 feature</strong> (bỏ 8 feature yếu). Đã kiểm chứng lọc
+          không làm hại: PR-AUC 0.1385 (full) → 0.1418 (lọc). Train phân phối thật, finetune bằng Optuna (TPE) +
+          early stopping; enqueue cấu hình baseline để best ≥ baseline.</p>
+
+        <h3>Feature changelog (bỏ gì / thêm gì / giữ gì)</h3>
+        <table>
+          <thead><tr><th>Mốc</th><th class="num">Số feature</th><th>Thay đổi</th></tr></thead>
+          <tbody>
+            <tr><td>V1 baseline (week_3)</td><td class="num">27</td><td>điểm xuất phát</td></tr>
+            <tr><td>+ V2 (NB08)</td><td class="num">41</td><td><strong>thêm 14</strong> (4 categorical + 10 flag)</td></tr>
+            <tr><td>− feature yếu (NB10)</td><td class="num win">33</td><td><strong>bỏ 8</strong> (permutation ≤ 0)</td></tr>
+          </tbody>
+        </table>
+        <h3>8 feature bị bỏ (lý do &amp; nguồn)</h3>
+        <table>
+          <thead><tr><th>Feature</th><th>Nhóm gốc</th><th>Lý do</th><th>Phát hiện</th></tr></thead>
+          <tbody>
+            <tr><td><code>session_month</code></td><td>V1 time</td><td>permutation ≤ 0 với classifier</td><td>NB07</td></tr>
+            <tr><td><code>is_first_session</code></td><td>V1 derived flag</td><td>trùng tín hiệu <code>user_previous_sessions</code></td><td>NB07</td></tr>
+            <tr><td><code>is_bounce</code></td><td>V1 session</td><td>permutation ≤ 0</td><td>NB07</td></tr>
+            <tr><td><code>has_gclid</code></td><td>V1 flag</td><td>permutation ≤ 0</td><td>NB07</td></tr>
+            <tr><td><code>has_traffic_campaign</code></td><td>V1 flag</td><td>permutation ≤ 0</td><td>NB07</td></tr>
+            <tr><td><code>has_previous_purchase</code></td><td>V1 derived flag</td><td>trùng tín hiệu <code>user_previous_purchase_count</code></td><td>NB07</td></tr>
+            <tr><td><code>is_socially_engaged</code></td><td>V2 flag</td><td>permutation ≈ 0, gần như hằng số</td><td>NB08</td></tr>
+            <tr><td><code>is_organic_traffic</code></td><td>V2 flag</td><td>permutation ≤ 0; đã có <code>traffic_channel_type_model</code></td><td>NB08</td></tr>
+          </tbody>
+        </table>
+        <p>Trong 14 feature V2 thêm ở NB08, <strong>12/14 được giữ</strong> sau lọc — chỉ 2 flag
+          (<code>is_socially_engaged</code>, <code>is_organic_traffic</code>) bị loại.</p>
+        <h3>33 feature cuối cùng (bộ dùng để finetune &amp; deploy)</h3>
+        <table>
+          <thead><tr><th>Nhóm</th><th>Feature</th></tr></thead>
+          <tbody>
+            <tr><td>Current-session numeric/time (7)</td><td><code>visit_number</code>, <code>totals_hits</code>, <code>totals_pageviews</code>, <code>totals_time_on_site</code>, <code>totals_new_visits</code>, <code>session_hour</code>, <code>session_day_of_week</code></td></tr>
+            <tr><td>Categorical (8)</td><td><code>channelGrouping_model</code>, <code>traffic_channel_type_model</code>, <code>device_category_model</code>, <code>geo_country_model</code>, <code>traffic_source_clean_model</code>, <code>traffic_medium_clean_model</code>, <code>browser_family_model</code>, <code>os_family_model</code></td></tr>
+            <tr><td>Sparse flags (9)</td><td><code>has_referral_path</code>, <code>is_direct_traffic</code>, <code>is_paid_traffic</code>, <code>is_referral_traffic</code>, <code>has_traffic_keyword</code>, <code>has_traffic_ad_content</code>, <code>has_geo_region</code>, <code>has_geo_metro</code>, <code>has_custom_dimension</code></td></tr>
+            <tr><td>User-history (9)</td><td><code>user_previous_sessions</code>, <code>user_days_since_first_session</code>, <code>user_days_since_previous_session</code>, <code>user_previous_avg_pageviews</code>, <code>user_previous_avg_time_on_site</code>, <code>user_previous_bounce_rate</code>, <code>user_previous_purchase_count</code>, <code>user_previous_total_revenue</code>, <code>user_days_since_previous_purchase</code></td></tr>
+          </tbody>
+        </table>
+
+        <h3>Kết quả finetune</h3>
+        <table>
+          <thead><tr><th>Model</th><th>Metric</th><th class="num">Baseline lọc</th><th class="num">Finetuned (Optuna)</th></tr></thead>
+          <tbody>
+            <tr><td>Classifier</td><td>PR-AUC (val)</td><td class="num">0.1418</td><td class="num win">0.1425</td></tr>
+            <tr><td>Regressor</td><td>RMSE-log (val)</td><td class="num">1.0545</td><td class="num win">1.0370</td></tr>
+          </tbody>
+        </table>
+        <h3>Threshold</h3>
+        <p>Dữ liệu lệch nên không dùng 0.5. Chọn <strong>F1-optimal = 0.127</strong> trên validation.</p>
+
+        <h3>Final Test Evaluation (chốt model — test chạy 1 lần)</h3>
+        <table>
+          <thead><tr><th>Metric</th><th class="num">Validation</th><th class="num">Test</th></tr></thead>
+          <tbody>
+            <tr><td>PR-AUC</td><td class="num">0.1425</td><td class="num win">0.1567</td></tr>
+            <tr><td>Precision @0.127</td><td class="num">0.171</td><td class="num">0.183</td></tr>
+            <tr><td>Recall @0.127</td><td class="num">0.277</td><td class="num">0.286</td></tr>
+            <tr><td>F1 @0.127</td><td class="num">0.211</td><td class="num">0.223</td></tr>
+            <tr><td>Conditional RMSE-log</td><td class="num">1.037</td><td class="num">1.095</td></tr>
+            <tr><td>Revenue capture top 10%</td><td class="num">77.8%</td><td class="num win">84.8%</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="hygiene">
+        <h2>Vệ sinh dữ liệu</h2>
+        <table>
+          <thead><tr><th>Bước</th><th>Fit từ đâu</th><th>Test dùng để</th></tr></thead>
+          <tbody>
+            <tr><td>Rare-mapping &amp; category levels (NB08)</td><td>train</td><td>chỉ transform</td></tr>
+            <tr><td>Optuna scoring / filtering check (NB10)</td><td>train split (fit), validation (score)</td><td>không dùng</td></tr>
+            <tr><td>Chọn threshold (NB10)</td><td>validation</td><td>không dùng</td></tr>
+            <tr><td>Final test (NB10 mục 9)</td><td>—</td><td>predict 1 lần, không refit</td></tr>
+          </tbody>
+        </table>
+        <p class="lead" style="margin-top:14px">→ Không có rò rỉ test vào quá trình fit/tune/chọn threshold.</p>
+      </section>
+
+      <section id="conclusion">
+        <h2>Kết luận</h2>
+        <ul>
+          <li><strong>Feature importance:</strong> <code>visit_number</code>, <code>totals_hits</code>, user-history
+            là lõi; 8 feature yếu nên loại.</li>
+          <li><strong>Feature V2:</strong> không cải thiện classifier; chỉ giúp regressor nhẹ.</li>
+          <li><strong>Imbalance:</strong> resampling/<code>scale_pos_weight</code> không cải thiện ranking;
+            train phân phối thật + chọn threshold là đúng hướng.</li>
+          <li><strong>Finetune:</strong> lọc feature giúp PR-AUC tăng; Optuna + enqueue baseline đảm bảo không tệ
+            hơn baseline. Model mới đạt PR-AUC test 0.157, top 10% revenue capture 84.8%.</li>
+        </ul>
+        <div class="note">Để dùng cho API: trỏ tới <code>models/finetuned_&lt;version&gt;/</code>, đọc
+          <code>selected_threshold</code> và <code>feature_columns</code> từ <code>finetune_metadata.json</code>,
+          metric cuối ở <code>final_test_metrics.json</code>.</div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

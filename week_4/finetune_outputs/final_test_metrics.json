@@ -1,0 +1,89 @@
+{
+  "created_at_utc": "2026-06-18T09:37:44.095275+00:00",
+  "model_version": "v20260618T090411",
+  "feature_set": "v1v2_filtered",
+  "selected_threshold": 0.12700174834733757,
+  "test_rows": 330036,
+  "classification": {
+    "threshold": 0.12700174834733757,
+    "accuracy": 0.968930662109588,
+    "precision": 0.18250714374456453,
+    "recall": 0.2856309546957029,
+    "f1": 0.22271073377804732,
+    "pr_auc": 0.1567196624998444,
+    "confusion_matrix": {
+      "tn": 318313,
+      "fp": 6580,
+      "fn": 3674,
+      "tp": 1469
+    }
+  },
+  "conditional_revenue_regression": {
+    "positive_rows": 4686,
+    "rmse_log": 1.0951794178181404,
+    "mae_log": 0.8306378211155164,
+    "rmse_revenue": 1927.3152849691305,
+    "mae_revenue": 279.3554424739173
+  },
+  "expected_revenue": {
+    "row_count": 330036,
+    "actual_avg_revenue": 4.269030833000036,
+    "predicted_avg_expected_revenue": 1.6368850445093335,
+    "mae": 5.53758002825537,
+    "rmse": 230.92099480494352,
+    "correlation": 0.04221556570058758,
+    "revenue_capture": {
+      "top_1pct": {
+        "captured_pct": 56.29487320291955
+      },
+      "top_5pct": {
+        "captured_pct": 75.25444948849481
+      },
+      "top_10pct": {
+        "captured_pct": 84.78808295515024
+      }
+    }
+  },
+  "validation_for_comparison": {
+    "classification": {
+      "threshold": 0.12700174834733757,
+      "accuracy": 0.9755207557607609,
+      "precision": 0.1706371191135734,
+      "recall": 0.27697841726618705,
+      "f1": 0.21117586561535825,
+      "pr_auc": 0.14247989014684068,
+      "confusion_matrix": {
+        "tn": 91389,
+        "fp": 1497,
+        "fn": 804,
+        "tp": 308
+      }
+    },
+    "conditional_revenue_regression": {
+      "positive_rows": 1084,
+      "rmse_log": 1.0370060439038216,
+      "mae_log": 0.8030659194170349,
+      "rmse_revenue": 388.6415597148166,
+      "mae_revenue": 133.88197494517712
+    },
+    "expected_revenue": {
+      "row_count": 93998,
+      "actual_avg_revenue": 1.951952169195089,
+      "predicted_avg_expected_revenue": 1.1589635133084581,
+      "mae": 2.8869044887736344,
+      "rmse": 45.255186740065334,
+      "correlation": 0.06464098919206979,
+      "revenue_capture": {
+        "top_1pct": {
+          "captured_pct": 25.711621346460316
+        },
+        "top_5pct": {
+          "captured_pct": 61.050465555843815
+        },
+        "top_10pct": {
+          "captured_pct": 77.82775850830284
+        }
+      }
+    }
+  }
+}
