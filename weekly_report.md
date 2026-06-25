@@ -25,3 +25,10 @@ Tuần 3:
 Tuần 4 :
 - Tìm hiểu về Optuna để thực hiện thử finetune model
 - Tìm thêm các cách để cải thiện model
+- Sử dụng các phương pháp để xử lý mất cân bằng dữ liệu
+    + over-sampling
+    + under-sampling
+    + scale-pos-weight
+
+Tuần 5:
+- Thực hiện test với một bài toán mới với những kiến thức đã được học ở trước đó.

@@ -1,0 +1,86 @@
+feature,PSI,muc
+17 - Medium level education,0.012,on dinh
+34 - No car,0.0075,on dinh
+21 - Farmer,0.0068,on dinh
+38 - Income 30-45.000,0.0063,on dinh
+31 - Home owners,0.0058,on dinh
+5 - Customer main type,0.0058,on dinh
+30 - Rented house,0.0057,on dinh
+25 - Social class A,0.0056,on dinh
+26 - Social class B1,0.0049,on dinh
+59 - Contrib fire policies,0.0047,on dinh
+1 - Customer Subtype,0.0047,on dinh
+43 - Purchasing power class,0.0046,on dinh
+4 - Avg age,0.0046,on dinh
+49 - Contrib motorcycle/scooter policies,0.0043,on dinh
+41 - Income >123.000,0.0043,on dinh
+42 - Average income,0.0043,on dinh
+15 - Household with children,0.0043,on dinh
+3 - Avg size household,0.0039,on dinh
+9 - No religion,0.0039,on dinh
+40 - Income 75-122.000,0.0038,on dinh
+69 - Number delivery van policies,0.0037,on dinh
+24 - Unskilled labourers,0.0036,on dinh
+6 - Roman catholic,0.0036,on dinh
+73 - Number tractor policies,0.0035,on dinh
+12 - Other relation,0.0034,on dinh
+16 - High level education,0.0033,on dinh
+32 - 1 car,0.0032,on dinh
+35 - National Health Service,0.0032,on dinh
+39 - Income 45-75.000,0.0032,on dinh
+28 - Social class C,0.0031,on dinh
+36 - Private health insurance,0.003,on dinh
+13 - Singles,0.003,on dinh
+60 - Contrib surfboard policies,0.003,on dinh
+82 - Number boat policies,0.003,on dinh
+45 - Contrib third party (firms),0.0029,on dinh
+37 - Income <30.000,0.0029,on dinh
+7 - Protestant,0.0028,on dinh
+61 - Contrib boat policies,0.0028,on dinh
+33 - 2 cars,0.0027,on dinh
+8 - Other religion,0.0027,on dinh
+23 - Skilled labourers,0.0026,on dinh
+27 - Social class B2,0.0025,on dinh
+14 - Household without children,0.0023,on dinh
+63 - Contrib property insurance,0.0022,on dinh
+18 - Lower level education,0.0022,on dinh
+10 - Married,0.0022,on dinh
+19 - High status,0.0021,on dinh
+70 - Number motorcycle/scooter policies,0.0021,on dinh
+68 - Number car policies,0.002,on dinh
+22 - Middle management,0.0018,on dinh
+56 - Contrib private accident,0.0018,on dinh
+2 - Number of houses,0.0016,on dinh
+47 - Contrib car policies,0.0016,on dinh
+74 - Number agricultural machines policies,0.0016,on dinh
+76 - Number life insurances,0.0016,on dinh
+11 - Living together,0.0015,on dinh
+57 - Contrib family accidents,0.0015,on dinh
+55 - Contrib life insurances,0.0015,on dinh
+78 - Number family accidents,0.0015,on dinh
+48 - Contrib delivery van policies,0.0014,on dinh
+46 - Contrib third party (agriculture),0.0013,on dinh
+20 - Entrepreneur,0.0012,on dinh
+79 - Number disability insurance,0.0012,on dinh
+64 - Contrib social security insurance,0.0012,on dinh
+81 - Number surfboard policies,0.0011,on dinh
+80 - Number fire policies,0.001,on dinh
+29 - Social class D,0.0009,on dinh
+50 - Contrib lorry policies,0.0009,on dinh
+52 - Contrib tractor policies,0.0009,on dinh
+53 - Contrib agricultural machines policies,0.0009,on dinh
+72 - Number trailer policies,0.0008,on dinh
+77 - Number private accident,0.0008,on dinh
+83 - Number bicycle policies,0.0008,on dinh
+54 - Contrib moped policies,0.0007,on dinh
+44 - Contrib private third party,0.0005,on dinh
+84 - Number property insurance,0.0004,on dinh
+51 - Contrib trailer policies,0.0003,on dinh
+71 - Number lorry policies,0.0003,on dinh
+65 - Number private third party,0.0002,on dinh
+75 - Number moped policies,0.0001,on dinh
+58 - Contrib disability insurance,0.0001,on dinh
+67 - Number third party (agriculture),0.0001,on dinh
+66 - Number third party (firms),0.0001,on dinh
+85 - Number social security insurance,0.0001,on dinh
+62 - Contrib bicycle policies,0.0,on dinh
