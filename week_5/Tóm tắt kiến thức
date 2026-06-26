@@ -1,0 +1,132 @@
+Banca là bên bán bảo hiểm phát hành 1 loại bảo hiểm về sức khỏe.
+Nhiệm vụ giao cho chúng ta là giúp cho bộ phận quản lí hiểu được khách hàng bằng cách xác định nhóm khách hàng 
+-> Từ đó đưa ra được các chiến dịch bán hàng, tiếp thị hiệu quả.
+
+Ta sẽ cần đưa ra một bản báo cáo dài tối đa 2 trang 4  để trình bày về quá trình thực hiện
+
+NV chính 
+1. Dự đoán
+Ta sẽ build một model dự đoán khách hàng có mua bảo hiểm hay không
+Với bộ dữ liệu test bao gồm 4000 người có vẻ sẽ thích thú về bảo hiểm này
+-> ta sẽ lọc ra 800 người mà sẽ là những khách hàng hứa hẹn nhất, tiềm năng nhất.
+Dữ liệu test không có sẵn nhãn.
+Output sẽ 1 file gồm 800 dòng, mỗi dòng là id của khách hàng.
+Tức là ta sẽ train với bộ dữ liệu train và áp dụng nó để lọc ra 800 khách hàng tiềm năng nhất với bộ test.
+Giải thích những kỹ thuật mà ta sử dụng để theo dỗi mô hình và để chắc chắn rằng dữ liệu đầu ra có độ tin tưởng cao.
+
+2. Giải thích
+Mục tiêu của chúng ta sẽ là cung cấp insight cho bộ phận quản lí là tại sao khác hàng lại phải mua chính sách MANU
+- Họ là ai?
+- Đặc điểm của họ là gì?
+Những giải thích này sẽ được đánh giá dựa trên :
+- comprehensibility
+- usefullness
+- actionablity
+
+__________________________________________________________________________________
+Về dữ liệu ta có
+1. Tập train sửa dụng để  train và validate model
+mỗi dòng sẽ bao gồm 86 thuộc tính gồm
+- sociodemographic data : dữ liệu nhân khẩu xã hội từ 1 đến 42
+- product ownership : Những sản phẩm mà họ sở hữu như nhà cửa, xe, ...(43 đến 85)
+- Target attribute : Thuộc tính 86 sẽ là nhãn mục tiêu của bài toán
+Mỗi dòng là 1 ID số thứ tự dòng và là của 1 khách hàng duy nhất.
+
+
+2. Dữ liệu test.
+dùng để dự đoán, có format giống như tập train, chỉ là không có nhãn
+
+3. File attributes_desciption 
+Mô tả về các thuộc tính của khách hàng.
+
+_______________________________________________________________________________
+
+Tóm tắt kết quả:
+Về cơ bản thì dữ liệu sạch, chỉ có một vấn đề duy nhất là về duplicate dữ liệu, nhưng mà không loại bỏ các dòng này mà để lại như một cách để mô hình xếp hạng những người mà có cùng đặc trưng nhưng mà khác nhãn 
+
+Về dữ liêu thì chỉ vấn đề về các cột mà không được trình bày thêm phần appendix, qua kiểm chứng thì có các cột đa số các cột sẽ dưới dạng tỉ lệ và nếu gom theo nhóm thì tổng của nó sẽ rơi vào 9 đến 12. Nên ta có thể hiểu nó đúng theo tỉ lệ 
+Một vài cột như lương thì ta sẽ hiểu theo là giá trị càng lớn thì lương càng cao, tức là có quan hệ về độ lớn.
+
+Về xử lý dữ liệu thì không có gì cần xử lý cả, chỉ cần thêm thông tin của các cột vào trong bảng luôn đề dễ lấy lại.
+
+Về EDA, thì ta sẽ gom theo từng nhóm lại để phân tích cho dễ
+
+Về feature engineering thì chúng ta sau khi tính tương quan và loại bỏ tương đối các thuộc tính mà có tương quan cao với các thuộc tính khác. 
+Sau đó dựa trên EDA, ta tạo các thuộc tính mới là 
+- Tổng các policy, tổng chi phí, với thuộc tính mạnh như bảo hiểm ô tô, bảo hiểm cháy thì ta tạo nhãn mới là true false luôn
+- Tạo thêm 2 feature mới là WoE của cột 1 và 5 để thể hiện độ liên quan của thuộc tính với nhãn theo độ lớn.
+______________________________________________________________________________________________
+Ở phần EDA, ta sẽ phân tích dựa trên mức độ ảnh hưởng của thuộc tính đó tới nhãn.
+Ví dụ xét trên mỗi thuộc tính, ta tính riêng từng nhóm/giá trị của thuộc tính đó, và xem xét xem với thuộc tính đó thì tỉ lệ nhãn xuất hiện là bao nhiêu. Từ đó có những phân tích.
+
+Bên cạnh đó, ta sử dụng thêm IV và lift để theo dõi rõ hơn các thuộc thuộc tính này.
+
+- IV hay infomation value : Đóng vai như một người đánh giá bên ngoài đánh giá tổng thể của một thuộc tính
+IV được tính dựa trên mục tiêu của target(GOOD or BAD): Ta tính tỉ lệ bad của giá trị đó so với bad của toàn bộ thuộc tính và tương tự với good. Sau đó tính WoE. Và IV sẽ được tính $$IV_i = (Distr\_Bad_i - Distr\_Good_i) \times WOE_i$$
+
+IV < 0.02: Biến vô dụng (không có khả năng phân tách, loại bỏ).0.02 $\le$ 
+IV < 0.1: Biến yếu (khả năng phân tách kém).0.1 $\le$ 
+IV < 0.3: Biến trung bình (có giá trị, nên giữ).0.3 $\le$ 
+IV < 0.5: Biến mạnh (rất tốt cho mô hình).
+IV $\ge$ 0.5: Biến "quá mạnh" (Cần cẩn trọng! Có thể bị hiện tượng Data Leakage - rò rỉ dữ liệu, hoặc biến này bản chất chính là biến Target được biến tướng).
+
+Sau đó tính tổng thể của toàn bộ thuộc tính bằng cách cộng với tất cả giá trị lại.
+
+- Lift : thì đi sâu và chi tiết từng năng lực của từng giá trị trong thuộc tính
+Lift thì được tính bằng tỉ lệ target trung bình của riêng nhóm so với tỷ lệ target của toàn bộ dữ liệu. Với Tỷ lệ TARGET của nhóm $i$ $= \frac{\text{Số lượng } TARGET=1 \text{ trong nhóm } i}{\text{Tổng số quan sát trong nhóm } i}$. và Tỷ lệ Base (Tổng thể) $= \frac{\text{Tổng số } TARGET=1 \text{ của cả tập dữ liệu}}{\text{Tổng số quan sát của cả tập dữ liệu}}$
+______________________________________________________________________________________________
+Ổn định train test PSI là gì?
+- Covariate shift(dịch chuyển thuộc tính): Đây là sự dịch chuyển của phân phối các thuộc tính giữa dữ liệu train và test. Điều này để đánh giá phân phối trên train test có giống nhau không, nếu không thì có thể ảnh hưởng đến kết quả của mô hình.
+
+- PSI(Population Stability Index - Chỉ số ổn định quần thể): Đây chính là công cụ toán học để đo cái trên có xảy ra không.
+Cách tính : $$PSI_i = \left( \% \text{ Actual}_i - \% \text{ Expected}_i \right) \times \ln\left( \frac{\% \text{ Actual}_i}{\% \text{ Expected}_i} \right)$$
+
+Trong đó:$\% \text{ Actual}_i$: Tỷ lệ phần trăm số mẫu thuộc nhóm $i$ ở tập Test (hoặc tập thực tế hiện tại).$\% \text{ Expected}_i$: Tỷ lệ phần trăm số mẫu thuộc nhóm $i$ ở tập Train (tập cơ sở mong đợi).$$\text{PSI Tổng của biến} = \sum PSI_i$$
+
+- PSI < 0.1: Ổn định (No shift). Phân phối của biến ở tập Train và Test gần như y hệt nhau. Bạn hoàn toàn yên tâm.
+- 0.1 $\le$ PSI $\le$ 0.25: Dịch chuyển nhẹ (Moderate shift). Dữ liệu có sự thay đổi nhỏ. Cần theo dõi hoặc cân nhắc tối ưu hóa lại việc chia tập Train/Test.
+- PSI > 0.25: Dịch chuyển lớn (Significant shift). Phân phối ở tập Test đã khác hoàn toàn tập Train. Mô hình của bạn có nguy cơ cao sẽ bị "toang" (giảm AUC, sai lệch dự đoán). Bạn bắt buộc phải xử lý lại dữ liệu hoặc thu thập lại mẫu Train.
+______________________________________________________________________________________________
+Đánh giá mô hình bằng AUC
+Đầu tiên là ROC: ROC vẽ với trục tung là TPR(true positive rate) - tỉ lệ người thực sự true với trục hoành FPR(false positive rate) - tỉ lệ người bị đoán sai là true. 
+AUC là phần diện tích dưới đường này
+______________________________________________________________________________________________
+SHAP hoạt động như nào?
+Để tính được shap value cho một thuộc tính A thì thuật toán sẽ đưa A vào lần lượt các nhóm để đánh giá xem sự thay đổi của mô hình ra sao
+- Mô hình trống - thêm A 
+- Mô hình có thuộc tính B - thêm A
+- Mô hình có thuộc tính C - thêm A
+- Mô hình có thuộc tính B, C - thêm A
+Với mỗi lần thêm, ta đánh giá sự thay đổi của mô hình trước và sau khi thêm A vào, ta gọi sự thay đổi đó là x_i thì giá trị SHAP value sẽ được tính bằng trung bình cộng có trọng số của tất đóng góp cận biên trên.
+
+$$\text{Feature Importance (SHAP)} = \frac{1}{n} \sum_{i=1}^{n} |SHAP\_value_i|$$
+
+SHAP value có nhiều tác dụng hơn là so với feature Importance truyền thống
+- Tính nhất quán, người ta chứng minh được độ quan trọng của các thuộc tính không bị ảnh hưởng bởi thuật toán nếu dùng SHAP
+- SHAP summary plot đưa ra được một bức tranh hoàn hảo hơn
+- Phân tích được cả tương tác giữa các biến
+
+TreeSHAP là một thuật toán hiệu quả hơn để tính SHAP value, nhanh hơn, đẹp trai hơn
+______________________________________________________________________________________________
+Phương pháp OOF CV
+Ở đây ta đánh giá bằng cách chia ra 5 fold để CV. Sau đó, ta lấy mô hình train với 4 fold và 1 fold để đánh giá, ta lấy phần đó ra, lưu lại. Ứng với 5 fold gộp lại thì ta thu được toàn bộ đánh giá với toàn bộ tập.
+Từ kết quả đó, ta đi đánh error analysis. Sử dụng xác suất mà mô hình trả về để lấy làm điểm, so sánh với nhãn thực tế để xem phần nào sai, phần nào đúng
+
+______________________________________________________________________________________________
+Phần phân tích lỗi :
+Câu hỏi đưa ra để trả lời :
+1. "Model có phân biệt được người mua và không mua không?"
+→ Vẽ phân phối điểm hai nhóm. Nếu hai đống điểm tách nhau → tốt. Nếu chồng lên nhau → vùng đó model mù, đoán đại. Cho biết trần khả năng của model.
+
+2. "Những người mua mà ta bỏ sót — họ trông thế nào?"
+→ So chân dung người-mua-bị-sót với người-mua-bắt-được. Kết quả: người bị sót ít hợp đồng, ít bảo hiểm xe → họ trông giống người không mua, nên model cho điểm thấp.
+→ Đây là phần hành động được: muốn bắt họ thì cần đặc trưng mới mô tả họ tốt hơn, hoặc chấp nhận họ "vô hình".
+
+3. "Phần sai nào là lỗi của model, phần nào là không thể sửa?"
+→ 115 dòng có đặc trưng giống hệt nhau nhưng nhãn khác nhau. Với mấy dòng này mọi model đều buộc phải sai một phần. Đó là giới hạn lý thuyết ~2%, không phải model dở.
+→ Để không đổ oan cho mô hình, và biết "đến đây là kịch trần rồi, đừng cố nữa".
+
+4. "Model xếp hạng giỏi với loại khách nào, dở với loại nào?"
+→ Tính lift theo từng phân khúc. Có nhóm lift 3.8x (rất giỏi), có nhóm ~0 (bất lực).
+→ Quyết định nghiệp vụ: tin model ở nhóm nào, nhóm nào cần cách tiếp cận khác
+

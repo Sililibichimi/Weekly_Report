@@ -32,5 +32,7 @@ Train các model với dữ liệu được xử lý bằng các phương pháp 
 8. Finetune
 Tune hyperparameter để đưa ra mô hình cuối
 
-9. Runtest
+9. Error analyst
+Kiểm tra xem mô hình sai ở những quyết định nào?
+10. Runtest
 Áp dụng luông với dữ liệu test và chạy model với dữ liệu test để đưa ra kết quả cuối.
